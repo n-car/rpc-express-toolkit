@@ -5,13 +5,22 @@ const { RpcEndpoint, RpcClient } = require('../src/index');
 describe('RpcEndpoint', () => {
   let app;
   let rpc;
+  let consoleErrorSpy;
 
   beforeEach(() => {
+    // Mock console.error per evitare output durante i test
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    
     app = express();
     app.use(express.json());
     
     const context = { user: 'test-user' };
     rpc = new RpcEndpoint(app, context);
+  });
+
+  afterEach(() => {
+    // Ripristina console.error dopo ogni test
+    consoleErrorSpy.mockRestore();
   });
 
   describe('constructor', () => {
@@ -391,4 +400,5 @@ describe('RpcEndpoint', () => {
       });
     });
   });
+
 });
