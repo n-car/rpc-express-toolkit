@@ -783,7 +783,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 📖 [Documentation](https://github.com/n-car/rpc-express-toolkit/wiki)
 - 🐛 [Issue Tracker](https://github.com/n-car/rpc-express-toolkit/issues)
 - 💬 [Discussions](https://github.com/n-car/rpc-express-toolkit/discussions)
-- 📧 [Email Support](mailto:support@example.com)
 
 ## Acknowledgments
 
@@ -794,4 +793,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-Made with ❤️ by the n-car team
+Made with ❤️ by n-car
