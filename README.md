@@ -721,10 +721,6 @@ This project uses ESLint and Prettier for code formatting. Run `npm run lint` to
 
 ## Security
 
-### Vulnerability Reporting
-
-If you discover a security vulnerability, please send an email to security@example.com. All security vulnerabilities will be promptly addressed.
-
 ### Best Practices
 
 - Always validate input parameters using schema validation
