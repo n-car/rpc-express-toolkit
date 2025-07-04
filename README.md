@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![npm version](https://img.shields.io/npm/v/rpc-express-toolkit.svg)](https://www.npmjs.com/package/rpc-express-toolkit)
-[![Build Status](https://github.com/n-car/rpc-express-toolkit/actions/workflows/main.yml/badge.svg)](https://github.com/n-car/rpc-express-toolkit/actions)
+[![Build Status](https://github.com/n-car/rpc-express-toolkit/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/n-car/rpc-express-toolkit/actions/workflows/main.yml)
 [![Coverage Status](https://coveralls.io/repos/github/n-car/rpc-express-toolkit/badge.svg?branch=main)](https://coveralls.io/github/n-car/rpc-express-toolkit?branch=main)
 
 An enterprise-ready JSON-RPC 2.0 toolkit for Express.js applications with simplified APIs, structured logging, middleware system, schema validation, batch processing, and comprehensive BigInt/Date serialization support.
