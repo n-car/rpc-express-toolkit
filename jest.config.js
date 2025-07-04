@@ -1,15 +1,19 @@
 module.exports = {
   testEnvironment: 'node',
-  collectCoverageFrom: [
-    'src/**/*.js',
-    '!src/clients/**',
-    '!**/node_modules/**',
-  ],
-  testMatch: [
-    '**/__tests__/**/*.js',
-    '**/?(*.)+(spec|test).js',
-  ],
+  collectCoverage: true,
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
-  verbose: true,
+  collectCoverageFrom: [
+    'src/**/*.js',
+    '!src/clients/**', // Esclude i client dal coverage
+    '!**/node_modules/**'
+  ],
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80
+    }
+  }
 };

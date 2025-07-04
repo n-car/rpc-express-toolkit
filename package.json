@@ -12,6 +12,8 @@
   ],
   "scripts": {
     "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch",
     "lint": "eslint src/ examples/",
     "lint:fix": "eslint src/ examples/ --fix",
     "clean": "node -e \"require('fs').existsSync('dist') && require('fs').rmSync('dist', {recursive: true})\"",

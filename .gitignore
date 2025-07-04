@@ -58,3 +58,7 @@ temp/
 *.bak
 *.backup
 *.orig
+
+# Coverage reports
+coverage/
+*.lcov
