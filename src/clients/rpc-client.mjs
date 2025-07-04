@@ -270,6 +270,3 @@ export class RpcClient {
     return value;
   }
 }
-
-// Export only the main class
-export { RpcClient };
