@@ -109,20 +109,21 @@ const client = new RpcClient('/api');
 const user = await client.call('getUser', { userId: 123 });
 ```
 
-#### SSL e certificati self-signed in sviluppo (Node.js)
 
-Per bypassare la validazione dei certificati SSL (ad esempio con certificati self-signed in sviluppo), imposta **prima** di avviare il client:
+#### ⚠️ SSL and self-signed certificates in development (Node.js)
+
+If you need to connect to a server with a self-signed certificate during development, set the following environment variable **before** starting your Node.js process:
 
 ```js
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 ```
 
-**Attenzione:**
-- Questa impostazione disabilita la validazione SSL per tutte le richieste nel processo Node.js.
-- Usala solo in ambienti di sviluppo!
-- Non committare mai questa impostazione in produzione.
+**Warning:**
+- This disables SSL certificate validation for all HTTPS requests in the Node.js process.
+- Use this only in development environments!
+- Never commit or enable this setting in production.
 
-Le opzioni avanzate `agent` e `ca` sono state rimosse per semplicità e compatibilità con Node.js moderno.
+Advanced options like `agent` and `ca` have been removed for simplicity and compatibility with modern Node.js. This is the only universal and reliable way to bypass SSL validation for development with self-signed certificates.
 
 ## Advanced Usage
 
@@ -337,13 +338,25 @@ new RpcClient(baseUrl, options)
 
 #### Methods
 
+
 ##### `call(method, params, options)`
 
 Make a single RPC call.
 
 ```javascript
-const result = await client.call('add', { a: 1, b: 2 });
+// If the method does not require parameters, you can omit the params argument:
+const result = await client.call('ping');
+
+// If you pass params as undefined or null, the field will be omitted from the JSON-RPC payload (per spec):
+await client.call('ping', undefined);
+await client.call('ping', null);
+
+// If you pass an object or array, it will be sent as params:
+await client.call('add', { a: 1, b: 2 });
 ```
+
+> **Note:**
+> The `params` field is omitted from the JSON-RPC request if you pass `undefined` or `null`, as required by the JSON-RPC 2.0 specification. If you pass an object or array, it will be included as `params`.
 
 ##### `batch(requests)`
 

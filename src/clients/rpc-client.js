@@ -77,13 +77,16 @@ class RpcClient {
   async call(method, params = {}, id = undefined, overrideHeaders = {}) {
     // Auto-generate ID if not provided (null means notification)
     const requestId = id === undefined ? this.#generateId() : id;
-    
+
+    // Costruisci il payload secondo lo standard: params omesso se undefined/null
     const requestBody = {
       jsonrpc: "2.0",
       method,
-      params,
       id: requestId,
     };
+    if (params !== undefined && params !== null) {
+      requestBody.params = params;
+    }
 
     try {
       const response = await fetchFn(this.#endpoint, {
@@ -132,12 +135,17 @@ class RpcClient {
    * @returns {Promise<Array<any>>} Array of results in the same order as requests.
    */
   async batch(requests, overrideHeaders = {}) {
-    const batchRequests = requests.map(req => ({
-      jsonrpc: "2.0",
-      method: req.method,
-      params: req.params || {},
-      id: req.id !== undefined ? req.id : this.#generateId()
-    }));
+    const batchRequests = requests.map(req => {
+      const obj = {
+        jsonrpc: "2.0",
+        method: req.method,
+        id: req.id !== undefined ? req.id : this.#generateId()
+      };
+      if (req.params !== undefined && req.params !== null) {
+        obj.params = req.params;
+      }
+      return obj;
+    });
 
     try {
       const response = await fetchFn(this.#endpoint, {
