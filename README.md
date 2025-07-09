@@ -91,6 +91,7 @@ app.listen(3000, () => {
 });
 ```
 
+
 ### Client Usage
 
 ```javascript
@@ -107,6 +108,21 @@ console.log(result); // 8
 const client = new RpcClient('/api');
 const user = await client.call('getUser', { userId: 123 });
 ```
+
+#### SSL e certificati self-signed in sviluppo (Node.js)
+
+Per bypassare la validazione dei certificati SSL (ad esempio con certificati self-signed in sviluppo), imposta **prima** di avviare il client:
+
+```js
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+```
+
+**Attenzione:**
+- Questa impostazione disabilita la validazione SSL per tutte le richieste nel processo Node.js.
+- Usala solo in ambienti di sviluppo!
+- Non committare mai questa impostazione in produzione.
+
+Le opzioni avanzate `agent` e `ca` sono state rimosse per semplicità e compatibilità con Node.js moderno.
 
 ## Advanced Usage
 

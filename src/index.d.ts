@@ -99,9 +99,7 @@ declare class RpcClient {
     endpoint: string,
     defaultHeaders?: Record<string, string>,
     options?: {
-      rejectUnauthorized?: boolean;
-      ca?: string | Buffer;
-      agent?: any;
+      // Opzioni SSL avanzate rimosse: usa process.env.NODE_TLS_REJECT_UNAUTHORIZED per sviluppo
     }
   );
 

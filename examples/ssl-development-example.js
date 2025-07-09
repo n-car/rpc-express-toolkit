@@ -19,29 +19,20 @@ async function demonstrateSSLOptions() {
   console.log('   ✓ Created client with strict SSL validation (default)\n');
 
 
-  // Example 2: Development client for self-signed certificates (bypasses ALL SSL validation)
-  console.log('2. Development Client (bypasses SSL validation):');
-  const developmentClient = new RpcClient('https://localhost:3000/api', {
-    'Authorization': 'Bearer dev-token',
-    'X-Environment': 'development'
-  }, {
-    rejectUnauthorized: false // Solo per sviluppo!
-  });
-  console.log('   ✓ Created client that bypasses SSL certificate validation');
-  console.log('   ⚠️  WARNING: Only use this for development with self-signed certificates!\n');
 
-  // Example 3: Development client with custom CA (accepts only your self-signed CA)
-  console.log('3. Development Client with custom CA:');
-  const fs = require('fs');
-  const ca = fs.readFileSync('path/to/your/selfsigned-ca.pem');
-  const devClientWithCA = new RpcClient('https://localhost:3000/api', {
-    'Authorization': 'Bearer dev-token',
-    'X-Environment': 'development'
-  }, {
-    ca // Passa il certificato della tua CA self-signed
-  });
-  console.log('   ✓ Created client that accepts only your self-signed CA');
-  console.log('   ⚠️  WARNING: This is safer than disabling validation, but use valid certificates in production!\n');
+  // Example 2: Development client per self-signed certificates (bypassa TUTTA la validazione SSL)
+  console.log('2. Development Client (bypasses SSL validation):');
+  console.log('   ⚠️  Per bypassare la validazione SSL in Node.js, imposta PRIMA di avviare il client:');
+  console.log('   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";');
+  console.log('   ✓ Tutte le richieste accetteranno certificati self-signed (solo per sviluppo!)\n');
+
+  // Example 3: Best practice
+  console.log('3. Best Practices:');
+  console.log('   ✓ Usa sempre la validazione SSL in produzione');
+  console.log('   ✓ Disabilita la validazione solo per sviluppo con self-signed');
+  console.log('   ✓ Usa variabili d’ambiente per controllare il comportamento SSL');
+  console.log('   ✓ Non committare mai process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0" in produzione');
+  console.log('   ✓ Considera l’uso di certificati di sviluppo validi invece di disabilitare la validazione\n');
 
   // Example 4: Demonstrate how to choose configuration based on environment
   console.log('4. Environment-based Configuration:');

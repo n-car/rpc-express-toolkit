@@ -53,28 +53,10 @@ export class RpcClient {
     
     // Store fetch options for Node.js environments
     this.#fetchOptions = {};
-    
-    // Handle SSL certificate validation option for Node.js
-    if (typeof process !== 'undefined' && process.env && options.rejectUnauthorized === false) {
-      // Set up agent for Node.js fetch implementations
-      if (typeof require !== 'undefined') {
-        try {
-          const https = require('https');
-          this.#fetchOptions.agent = new https.Agent({
-            rejectUnauthorized: false
-          });
-        } catch (e) {
-          // For ES modules, we'll try dynamic import
-          import('https').then(httpsModule => {
-            this.#fetchOptions.agent = new httpsModule.Agent({
-              rejectUnauthorized: false
-            });
-          }).catch(() => {
-            // Ignore if https module is not available
-          });
-        }
-      }
-    }
+    // SSL validation: la gestione avanzata (agent/ca) è rimossa per semplicità e compatibilità.
+    // Per bypassare i certificati self-signed in sviluppo, imposta:
+    //   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+    // Vedi README per dettagli e best practice.
   }
 
   /**
