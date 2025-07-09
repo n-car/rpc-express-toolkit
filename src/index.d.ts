@@ -92,8 +92,18 @@ declare class RpcClient {
    * @param defaultHeaders - Default headers to include in requests
    * @param options - Configuration options
    * @param options.rejectUnauthorized - Whether to reject unauthorized SSL certificates (default: true). Set to false for development with self-signed certificates.
+   * @param options.ca - Buffer or string of a custom CA certificate to trust (for self-signed CA)
+   * @param options.agent - Custom https.Agent instance (advanced usage)
    */
-  constructor(endpoint: string, defaultHeaders?: Record<string, string>, options?: { rejectUnauthorized?: boolean });
+  constructor(
+    endpoint: string,
+    defaultHeaders?: Record<string, string>,
+    options?: {
+      rejectUnauthorized?: boolean;
+      ca?: string | Buffer;
+      agent?: any;
+    }
+  );
 
   /**
    * Make a JSON-RPC call to the server.

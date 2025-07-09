@@ -516,30 +516,40 @@ logger.error('Database error', {
 
 ### Client Configuration
 
-The `RpcClient` supports various configuration options for different environments:
+The `RpcClient` supports various configuration options for different environments, **inclusa la gestione di certificati self-signed**:
 
 ```javascript
+const fs = require('fs');
 const { RpcClient } = require('rpc-express-toolkit');
 
 // Basic client
 const client = new RpcClient('https://api.example.com/rpc');
 
-// Client with custom headers
+// Client con header personalizzati
 const clientWithHeaders = new RpcClient('https://api.example.com/rpc', {
     'Authorization': 'Bearer your-token',
     'X-API-Key': 'your-api-key',
     'User-Agent': 'MyApp/1.0'
 });
 
-// Client for development with self-signed certificates
+// Client per sviluppo con certificato self-signed (accetta qualsiasi certificato, NON usare in produzione)
 const devClient = new RpcClient('https://localhost:3000/api', {
     'Authorization': 'Bearer dev-token'
 }, {
-    rejectUnauthorized: false // Only for development!
+    rejectUnauthorized: false // Solo per sviluppo!
+});
+
+// Client per sviluppo con CA self-signed (modo sicuro: accetta solo la tua CA)
+const ca = fs.readFileSync('path/to/your/selfsigned-ca.pem');
+const devClientWithCA = new RpcClient('https://localhost:3000/api', {
+    'Authorization': 'Bearer dev-token'
+}, {
+    ca // Passa il certificato della tua CA self-signed
+    // oppure: agent: new require('https').Agent({ ca, rejectUnauthorized: true })
 });
 ```
 
-**⚠️ Security Warning**: Only use `rejectUnauthorized: false` in development environments with self-signed certificates. Never use this in production as it disables SSL certificate validation and makes your application vulnerable to man-in-the-middle attacks.
+**⚠️ Security Warning**: Usa `rejectUnauthorized: false` solo in sviluppo. Per maggiore sicurezza, preferisci sempre la soluzione con `ca` per accettare solo la tua CA self-signed. In produzione usa sempre certificati validi e firmati da una CA attendibile.
 
 ### Built-in Middlewares
 

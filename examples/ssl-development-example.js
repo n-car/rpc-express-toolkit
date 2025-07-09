@@ -18,33 +18,41 @@ async function demonstrateSSLOptions() {
   });
   console.log('   ✓ Created client with strict SSL validation (default)\n');
 
-  // Example 2: Development client for self-signed certificates
+
+  // Example 2: Development client for self-signed certificates (bypasses ALL SSL validation)
   console.log('2. Development Client (bypasses SSL validation):');
   const developmentClient = new RpcClient('https://localhost:3000/api', {
     'Authorization': 'Bearer dev-token',
     'X-Environment': 'development'
   }, {
-    rejectUnauthorized: false // Only for development!
+    rejectUnauthorized: false // Solo per sviluppo!
   });
   console.log('   ✓ Created client that bypasses SSL certificate validation');
   console.log('   ⚠️  WARNING: Only use this for development with self-signed certificates!\n');
 
-  // Example 3: Demonstrate how to choose configuration based on environment
-  console.log('3. Environment-based Configuration:');
-  
+  // Example 3: Development client with custom CA (accepts only your self-signed CA)
+  console.log('3. Development Client with custom CA:');
+  const fs = require('fs');
+  const ca = fs.readFileSync('path/to/your/selfsigned-ca.pem');
+  const devClientWithCA = new RpcClient('https://localhost:3000/api', {
+    'Authorization': 'Bearer dev-token',
+    'X-Environment': 'development'
+  }, {
+    ca // Passa il certificato della tua CA self-signed
+  });
+  console.log('   ✓ Created client that accepts only your self-signed CA');
+  console.log('   ⚠️  WARNING: This is safer than disabling validation, but use valid certificates in production!\n');
+
+  // Example 4: Demonstrate how to choose configuration based on environment
+  console.log('4. Environment-based Configuration:');
   const isDevelopment = process.env.NODE_ENV === 'development';
   const baseUrl = isDevelopment ? 'https://localhost:3000/api' : 'https://api.production.com/rpc';
-  
   const environmentClient = new RpcClient(baseUrl, {
     'Authorization': `Bearer ${process.env.API_TOKEN || 'default-token'}`,
     'X-Environment': process.env.NODE_ENV || 'development'
-  }, {
-    // Only bypass SSL validation in development
-    ...(isDevelopment && { rejectUnauthorized: false })
-  });
-
+  }, isDevelopment ? { ca } : {});
   console.log(`   ✓ Created client for ${isDevelopment ? 'development' : 'production'} environment`);
-  console.log(`   ✓ SSL validation: ${isDevelopment ? 'disabled (dev only)' : 'enabled (secure)'}\n`);
+  console.log(`   ✓ SSL validation: ${isDevelopment ? 'custom CA (dev only)' : 'enabled (secure)'}\n`);
 
   // Example usage (commented out since we don't have a real server)
   /*
