@@ -8,39 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.0] - 2025-07-09
 
 ### Added
-- **SSL Certificate Bypass Support**: Added `rejectUnauthorized` option to RpcClient constructor for development environments with self-signed certificates
-- **Enhanced Client Configuration**: RpcClient now accepts an optional `options` parameter for advanced configuration
-- **SSL Development Example**: Added `examples/ssl-development-example.js` demonstrating SSL configuration best practices
-- **TypeScript Support**: Updated TypeScript definitions to include new SSL configuration options
+- SSL certificate bypass option for development environments
+- `rejectUnauthorized` option in RpcClient constructor for both CommonJS and ESM clients
+- Comprehensive SSL configuration documentation with security warnings
+- SSL development example with best practices (`examples/ssl-development-example.js`)
+- TypeScript definitions for new SSL configuration options
 
 ### Changed
-- **Client Constructor**: RpcClient constructor now accepts a third parameter `options` for SSL and other configuration
-- **Documentation**: Enhanced README.md with "Client Configuration" section and SSL security warnings
-- **Build Process**: Updated minified clients to include SSL support
+- Updated client minified versions to include new SSL functionality
+- Enhanced README.md with client configuration section
 
 ### Security
-- Added comprehensive security warnings about SSL certificate validation bypass
-- Documented best practices for development vs production SSL handling
-- Emphasized that `rejectUnauthorized: false` should never be used in production
+- Added proper security warnings for SSL bypass functionality
+- Documented that `rejectUnauthorized: false` should only be used in development
 
-### Fixed
-- **Jest Configuration**: Removed reference to non-existent setup file in jest.config.js
-- **TypeScript Definitions**: Corrected client constructor signature in index.d.ts
+## [2.0.3] - Previous Version
 
-## [2.0.3] - Previous Release
-
-### Added
-- Modern RpcEndpoint and RpcClient APIs
-- Comprehensive BigInt and Date serialization/deserialization
-- Structured logging with winston
-- Schema validation support
-- Client script minification
-- Enterprise-ready middleware system
+### Changed
+- Cleaned up legacy code and removed deprecated aliases
+- Improved documentation and examples
+- Added client minification support
+- Updated TypeScript definitions
 
 ### Removed
-- Legacy JsonRPCEndpoint and JsonRPCClient classes
-- Deprecated Server and Client aliases
-- Legacy API references throughout codebase
+- Legacy `JsonRPCEndpoint`, `JsonRPCClient`, `Server`, and `Client` aliases
+- Deprecated API references from all files
 
-### Migration
-- See MIGRATION.md for detailed upgrade instructions from legacy APIs
+### Fixed
+- Various code quality improvements
+- Updated test suite for modern APIs only
