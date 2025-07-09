@@ -561,24 +561,26 @@ const clientWithHeaders = new RpcClient('https://api.example.com/rpc', {
     'User-Agent': 'MyApp/1.0'
 });
 
-// Client per sviluppo con certificato self-signed (accetta qualsiasi certificato, NON usare in produzione)
+// Development client with self-signed certificate (accepts any certificate, DO NOT use in production)
 const devClient = new RpcClient('https://localhost:3000/api', {
     'Authorization': 'Bearer dev-token'
 }, {
-    rejectUnauthorized: false // Solo per sviluppo!
+    rejectUnauthorized: false // Development only!
 });
 
-// Client per sviluppo con CA self-signed (modo sicuro: accetta solo la tua CA)
+// Development client with custom self-signed CA (safer: accepts only your CA)
 const ca = fs.readFileSync('path/to/your/selfsigned-ca.pem');
 const devClientWithCA = new RpcClient('https://localhost:3000/api', {
     'Authorization': 'Bearer dev-token'
 }, {
-    ca // Passa il certificato della tua CA self-signed
-    // oppure: agent: new require('https').Agent({ ca, rejectUnauthorized: true })
+    ca // Pass your self-signed CA certificate
+    // or: agent: new require('https').Agent({ ca, rejectUnauthorized: true })
 });
+
+**⚠️ Security Warning**: Use `rejectUnauthorized: false` for development only. For better security, always prefer the `ca` solution to accept only your self-signed CA. In production always use valid certificates signed by a trusted CA.
 ```
 
-**⚠️ Security Warning**: Usa `rejectUnauthorized: false` solo in sviluppo. Per maggiore sicurezza, preferisci sempre la soluzione con `ca` per accettare solo la tua CA self-signed. In produzione usa sempre certificati validi e firmati da una CA attendibile.
+**⚠️ Security Warning**: Use `rejectUnauthorized: false` for development only. For better security, always prefer the `ca` solution to accept only your self-signed CA. In production always use valid certificates signed by a trusted CA.
 
 ### Built-in Middlewares
 

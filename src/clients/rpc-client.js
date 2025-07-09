@@ -52,10 +52,10 @@ class RpcClient {
     
     // Store fetch options for Node.js environments
     this.#fetchOptions = {};
-    // SSL validation: la gestione avanzata (agent/ca) è rimossa per semplicità e compatibilità.
-    // Per bypassare i certificati self-signed in sviluppo, imposta:
+    // SSL validation: advanced options (agent/ca) have been removed for simplicity and compatibility.
+    // To bypass self-signed certificates in development, set:
     //   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-    // Vedi README per dettagli e best practice.
+    // See README for details and best practices.
   }
 
   /**
@@ -74,11 +74,11 @@ class RpcClient {
    * @param {Object} [overrideHeaders={}] Optional headers to override defaults for this request.
    * @returns {Promise<any>} The result of the RPC call.
    */
-  async call(method, params = {}, id = undefined, overrideHeaders = {}) {
+  async call(method, params, id = undefined, overrideHeaders = {}) {
     // Auto-generate ID if not provided (null means notification)
     const requestId = id === undefined ? this.#generateId() : id;
 
-    // Costruisci il payload secondo lo standard: params omesso se undefined/null
+    // Build the payload according to the spec: params omitted if undefined/null
     const requestBody = {
       jsonrpc: "2.0",
       method,
