@@ -514,6 +514,33 @@ logger.error('Database error', {
 // [2024-01-01T10:00:00.050Z] INFO: RPC success - {"method":"getUser","id":"req-123","duration":50,"resultSize":245}
 ```
 
+### Client Configuration
+
+The `RpcClient` supports various configuration options for different environments:
+
+```javascript
+const { RpcClient } = require('rpc-express-toolkit');
+
+// Basic client
+const client = new RpcClient('https://api.example.com/rpc');
+
+// Client with custom headers
+const clientWithHeaders = new RpcClient('https://api.example.com/rpc', {
+    'Authorization': 'Bearer your-token',
+    'X-API-Key': 'your-api-key',
+    'User-Agent': 'MyApp/1.0'
+});
+
+// Client for development with self-signed certificates
+const devClient = new RpcClient('https://localhost:3000/api', {
+    'Authorization': 'Bearer dev-token'
+}, {
+    rejectUnauthorized: false // Only for development!
+});
+```
+
+**⚠️ Security Warning**: Only use `rejectUnauthorized: false` in development environments with self-signed certificates. Never use this in production as it disables SSL certificate validation and makes your application vulnerable to man-in-the-middle attacks.
+
 ### Built-in Middlewares
 
 ```javascript

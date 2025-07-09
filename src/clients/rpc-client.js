@@ -33,12 +33,15 @@ class RpcClient {
   #endpoint;
   #defaultHeaders;
   #requestId;
+  #fetchOptions;
 
   /**
    * @param {string} endpoint The JSON-RPC endpoint URL.
    * @param {Object} [defaultHeaders={}] Optional default headers to include in requests.
+   * @param {Object} [options={}] Optional configuration options.
+   * @param {boolean} [options.rejectUnauthorized=true] Whether to reject unauthorized SSL certificates. Set to false for development with self-signed certificates.
    */
-  constructor(endpoint, defaultHeaders = {}) {
+  constructor(endpoint, defaultHeaders = {}, options = {}) {
     this.#endpoint = endpoint;
     this.#defaultHeaders = {
       "Content-Type": "application/json", // Default header
@@ -46,6 +49,24 @@ class RpcClient {
     };
     // Initialize request ID counter with timestamp + random component for uniqueness
     this.#requestId = Date.now() * 1000 + Math.floor(Math.random() * 1000);
+    
+    // Store fetch options for Node.js environments
+    this.#fetchOptions = {};
+    
+    // Handle SSL certificate validation option for Node.js
+    if (typeof process !== 'undefined' && process.env && options.rejectUnauthorized === false) {
+      // Set up agent for Node.js fetch implementations
+      if (typeof require !== 'undefined') {
+        try {
+          const https = require('https');
+          this.#fetchOptions.agent = new https.Agent({
+            rejectUnauthorized: false
+          });
+        } catch (e) {
+          // Ignore if https module is not available
+        }
+      }
+    }
   }
 
   /**
@@ -85,6 +106,7 @@ class RpcClient {
         // Since we have BigInt.prototype.toJSON, we don't need manual serialization
         // JSON.stringify will handle BigInt and Date automatically
         body: JSON.stringify(requestBody),
+        ...this.#fetchOptions, // Include any additional fetch options (e.g., SSL settings)
       });
 
       if (!response.ok) {
@@ -136,6 +158,7 @@ class RpcClient {
           ...overrideHeaders,
         },
         body: JSON.stringify(batchRequests),
+        ...this.#fetchOptions, // Include any additional fetch options (e.g., SSL settings)
       });
 
       if (!response.ok) {

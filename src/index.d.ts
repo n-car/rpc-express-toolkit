@@ -90,8 +90,10 @@ declare class RpcClient {
    * 
    * @param endpoint - JSON-RPC endpoint URL
    * @param defaultHeaders - Default headers to include in requests
+   * @param options - Configuration options
+   * @param options.rejectUnauthorized - Whether to reject unauthorized SSL certificates (default: true). Set to false for development with self-signed certificates.
    */
-  constructor(endpoint: string, defaultHeaders?: Record<string, string>);
+  constructor(endpoint: string, defaultHeaders?: Record<string, string>, options?: { rejectUnauthorized?: boolean });
 
   /**
    * Make a JSON-RPC call to the server.
