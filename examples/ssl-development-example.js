@@ -1,5 +1,11 @@
 /**
- * Example demonstrating how to use RpcClient with self-signed certificates
+ * Example demonstratin  // Example 3: Best practices
+  console.log('3. Best Practices:');
+  console.log('   ✓ Always use SSL validation in production');
+  console.log('   ✓ Disable validation only for development with self-signed certificates');
+  console.log('   ✓ Use environment variables to control SSL behavior');
+  console.log('   ✓ Never commit process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0" to production');
+  console.log('   ✓ Consider using valid development certificates instead of disabling validation\n');o use RpcClient with self-signed certificates
  * in development environments.
  * 
  * WARNING: Only use rejectUnauthorized: false in development!
@@ -20,11 +26,11 @@ async function demonstrateSSLOptions() {
 
 
 
-  // Example 2: Development client per self-signed certificates (bypassa TUTTA la validazione SSL)
+  // Example 2: Development client for self-signed certificates (bypasses ALL SSL validation)
   console.log('2. Development Client (bypasses SSL validation):');
-  console.log('   ⚠️  Per bypassare la validazione SSL in Node.js, imposta PRIMA di avviare il client:');
+  console.log('   ⚠️  To bypass SSL validation in Node.js, set BEFORE starting the client:');
   console.log('   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";');
-  console.log('   ✓ Tutte le richieste accetteranno certificati self-signed (solo per sviluppo!)\n');
+  console.log('   ✓ All requests will accept self-signed certificates (development only!)\n');
 
   // Example 3: Best practice
   console.log('3. Best Practices:');
@@ -41,9 +47,9 @@ async function demonstrateSSLOptions() {
   const environmentClient = new RpcClient(baseUrl, {
     'Authorization': `Bearer ${process.env.API_TOKEN || 'default-token'}`,
     'X-Environment': process.env.NODE_ENV || 'development'
-  }, isDevelopment ? { ca } : {});
+  });
   console.log(`   ✓ Created client for ${isDevelopment ? 'development' : 'production'} environment`);
-  console.log(`   ✓ SSL validation: ${isDevelopment ? 'custom CA (dev only)' : 'enabled (secure)'}\n`);
+  console.log(`   ✓ SSL validation: ${isDevelopment ? 'controlled by NODE_TLS_REJECT_UNAUTHORIZED' : 'enabled (secure)'}\n`);
 
   // Example usage (commented out since we don't have a real server)
   /*
@@ -56,7 +62,7 @@ async function demonstrateSSLOptions() {
   }
   */
 
-  console.log('4. Best Practices:');
+  console.log('5. Best Practices Summary:');
   console.log('   ✓ Always use strict SSL validation in production');
   console.log('   ✓ Only disable SSL validation for development with self-signed certificates');
   console.log('   ✓ Use environment variables to control SSL behavior');
