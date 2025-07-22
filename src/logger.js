@@ -100,7 +100,7 @@ class Logger {
       id,
       duration: `${duration}ms`,
       resultType: typeof result,
-      resultSize: JSON.stringify(result).length
+      resultSize: result ? JSON.stringify(result).length : 0
     });
   }
 
