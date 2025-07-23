@@ -1,1 +1,123 @@
-let t;if("undefined"==typeof BigInt||BigInt.prototype.toJSON||(BigInt.prototype.toJSON=function(){return this.toString()}),"undefined"!=typeof fetch)t=fetch;else try{const{default:e}=await import("node-fetch");t=e}catch(e){if("undefined"==typeof globalThis||!globalThis.fetch)throw new Error("fetch is not available. Please install node-fetch or use Node.js 18+");t=globalThis.fetch}export class RpcClient{#t;#e;#r;#s;constructor(t,e={},r={}){this.#t=t,this.#e={"Content-Type":"application/json",...e},this.#r=1e3*Date.now()+Math.floor(1e3*Math.random()),this.#s={}}async call(e,r={},s=null,i={}){null===s&&(s=++this.#r);const n={jsonrpc:"2.0",method:e,params:r,id:s};try{const e=await t(this.#t,{method:"POST",headers:{...this.#e,...i},body:JSON.stringify(n),...this.#s});if(!e.ok)throw new Error(`HTTP Error: ${e.status} ${e.statusText}`);const r=await e.json();if(r.error)throw r.error;return this.deserializeBigIntsAndDates(r.result)}catch(t){throw console.error("RPC call failed:",t),t}}async notify(e,r={},s={}){const i={jsonrpc:"2.0",method:e,params:r};try{const e=await t(this.#t,{method:"POST",headers:{...this.#e,...s},body:JSON.stringify(i),...this.#s});if(!e.ok)throw new Error(`HTTP Error: ${e.status} ${e.statusText}`)}catch(t){throw console.error("RPC notification failed:",t),t}}async batch(e,r={}){const s=e.map(t=>{const e={jsonrpc:"2.0",method:t.method,params:t.params||{}};return t.notification||(e.id=void 0!==t.id?t.id:++this.#r),e});try{const e=await t(this.#t,{method:"POST",headers:{...this.#e,...r},body:JSON.stringify(s),...this.#s});if(!e.ok)throw new Error(`HTTP Error: ${e.status} ${e.statusText}`);const i=await e.json();if(Array.isArray(i))return i.map(t=>{if(t.error)throw t.error;return this.deserializeBigIntsAndDates(t.result)});if(i.error)throw i.error;return[this.deserializeBigIntsAndDates(i.result)]}catch(t){throw console.error("RPC batch call failed:",t),t}}serializeBigIntsAndDates(t){if("bigint"==typeof t)return t.toString();if(Array.isArray(t))return t.map(t=>this.serializeBigIntsAndDates(t));if(t instanceof Date)return t.toISOString();if(t&&"object"==typeof t){const e={};for(const[r,s]of Object.entries(t))e[r]=this.serializeBigIntsAndDates(s);return e}return t}deserializeBigIntsAndDates(t){const e=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/;if("string"==typeof t){if(/^-?\d+n?$/.test(t))return BigInt(t.replace(/n$/,""));if(e.test(t)){const e=new Date(t);if(!isNaN(e.getTime()))return e}}return Array.isArray(t)?t.map(t=>this.deserializeBigIntsAndDates(t)):t&&"object"==typeof t?Object.fromEntries(Object.entries(t).map(([t,e])=>[t,this.deserializeBigIntsAndDates(e)])):t}}
+let t;
+if (
+  ('undefined' == typeof BigInt ||
+    BigInt.prototype.toJSON ||
+    (BigInt.prototype.toJSON = function () {
+      return this.toString();
+    }),
+  'undefined' != typeof fetch)
+)
+  t = fetch;
+else
+  try {
+    const { default: e } = await import('node-fetch');
+    t = e;
+  } catch (e) {
+    if ('undefined' == typeof globalThis || !globalThis.fetch)
+      throw new Error(
+        'fetch is not available. Please install node-fetch or use Node.js 18+'
+      );
+    t = globalThis.fetch;
+  }
+export class RpcClient {
+  #t;
+  #e;
+  #r;
+  #s;
+  constructor(t, e = {}, r = {}) {
+    ((this.#t = t),
+      (this.#e = { 'Content-Type': 'application/json', ...e }),
+      (this.#r = 1e3 * Date.now() + Math.floor(1e3 * Math.random())),
+      (this.#s = {}));
+  }
+  async call(e, r = {}, s = null, i = {}) {
+    null === s && (s = ++this.#r);
+    const n = { jsonrpc: '2.0', method: e, params: r, id: s };
+    try {
+      const e = await t(this.#t, {
+        method: 'POST',
+        headers: { ...this.#e, ...i },
+        body: JSON.stringify(n),
+        ...this.#s,
+      });
+      if (!e.ok) throw new Error(`HTTP Error: ${e.status} ${e.statusText}`);
+      const r = await e.json();
+      if (r.error) throw r.error;
+      return this.deserializeBigIntsAndDates(r.result);
+    } catch (t) {
+      throw (console.error('RPC call failed:', t), t);
+    }
+  }
+  async notify(e, r = {}, s = {}) {
+    const i = { jsonrpc: '2.0', method: e, params: r };
+    try {
+      const e = await t(this.#t, {
+        method: 'POST',
+        headers: { ...this.#e, ...s },
+        body: JSON.stringify(i),
+        ...this.#s,
+      });
+      if (!e.ok) throw new Error(`HTTP Error: ${e.status} ${e.statusText}`);
+    } catch (t) {
+      throw (console.error('RPC notification failed:', t), t);
+    }
+  }
+  async batch(e, r = {}) {
+    const s = e.map((t) => {
+      const e = { jsonrpc: '2.0', method: t.method, params: t.params || {} };
+      return (t.notification || (e.id = void 0 !== t.id ? t.id : ++this.#r), e);
+    });
+    try {
+      const e = await t(this.#t, {
+        method: 'POST',
+        headers: { ...this.#e, ...r },
+        body: JSON.stringify(s),
+        ...this.#s,
+      });
+      if (!e.ok) throw new Error(`HTTP Error: ${e.status} ${e.statusText}`);
+      const i = await e.json();
+      if (Array.isArray(i))
+        return i.map((t) => {
+          if (t.error) throw t.error;
+          return this.deserializeBigIntsAndDates(t.result);
+        });
+      if (i.error) throw i.error;
+      return [this.deserializeBigIntsAndDates(i.result)];
+    } catch (t) {
+      throw (console.error('RPC batch call failed:', t), t);
+    }
+  }
+  serializeBigIntsAndDates(t) {
+    if ('bigint' == typeof t) return t.toString();
+    if (Array.isArray(t)) return t.map((t) => this.serializeBigIntsAndDates(t));
+    if (t instanceof Date) return t.toISOString();
+    if (t && 'object' == typeof t) {
+      const e = {};
+      for (const [r, s] of Object.entries(t))
+        e[r] = this.serializeBigIntsAndDates(s);
+      return e;
+    }
+    return t;
+  }
+  deserializeBigIntsAndDates(t) {
+    const e =
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/;
+    if ('string' == typeof t) {
+      if (/^-?\d+n?$/.test(t)) return BigInt(t.replace(/n$/, ''));
+      if (e.test(t)) {
+        const e = new Date(t);
+        if (!isNaN(e.getTime())) return e;
+      }
+    }
+    return Array.isArray(t)
+      ? t.map((t) => this.deserializeBigIntsAndDates(t))
+      : t && 'object' == typeof t
+        ? Object.fromEntries(
+            Object.entries(t).map(([t, e]) => [
+              t,
+              this.deserializeBigIntsAndDates(e),
+            ])
+          )
+        : t;
+  }
+}

@@ -1,7 +1,5 @@
-"use strict";
-
-const path = require("path");
-const express = require("express");
+const path = require('path');
+const express = require('express');
 
 /** @typedef {import("express").Router} Router */
 /** @typedef {import("express").Request} Request */
@@ -10,7 +8,11 @@ const express = require("express");
 const NestedError = require('nested-error-stacks');
 const Logger = require('./logger');
 const { MiddlewareManager, builtInMiddlewares } = require('./middleware');
-const { SchemaValidator, commonSchemas, SchemaBuilder } = require('./validation');
+const {
+  SchemaValidator,
+  commonSchemas,
+  SchemaBuilder,
+} = require('./validation');
 const BatchHandler = require('./batch');
 
 /**
@@ -18,9 +20,22 @@ const BatchHandler = require('./batch');
  * @type {Array<string>}
  */
 const defaultProperties = [
-  'stackTraceLimit', 'cause', 'code', 'message', 'stack', 'address',
-  'dest', 'errno', 'info', 'path', 'port', 'syscall', 'opensslErrorStack',
-  'function', 'library', 'reason'
+  'stackTraceLimit',
+  'cause',
+  'code',
+  'message',
+  'stack',
+  'address',
+  'dest',
+  'errno',
+  'info',
+  'path',
+  'port',
+  'syscall',
+  'opensslErrorStack',
+  'function',
+  'library',
+  'reason',
 ];
 
 /**
@@ -30,31 +45,36 @@ const defaultProperties = [
  * @param {Array<string>} properties - Properties to include in serialization.
  * @returns {Object} The serialized error.
  */
-const serializeError = (error, sanitize = false, properties = defaultProperties) => {
+const serializeError = (
+  error,
+  sanitize = false,
+  properties = defaultProperties
+) => {
   if (error === null || error === undefined) return error;
 
   const result = {};
   const includeProperties = sanitize
-      ? properties.filter(prop => !['address', 'path'].includes(prop))
-      : properties;
+    ? properties.filter((prop) => !['address', 'path'].includes(prop))
+    : properties;
 
-  includeProperties.forEach(prop => {
-      if (error?.[prop] !== undefined) {
-          result[prop] = error[prop];
-      }
+  includeProperties.forEach((prop) => {
+    if (error?.[prop] !== undefined) {
+      result[prop] = error[prop];
+    }
   });
 
   if (error instanceof NestedError) {
-      result.type = 'NestedError';
-      if (error.nested) result.nested = serializeError(error.nested, sanitize, properties);
+    result.type = 'NestedError';
+    if (error.nested)
+      result.nested = serializeError(error.nested, sanitize, properties);
   } else if (error instanceof Error) {
-      result.type = 'Error';
+    result.type = 'Error';
   } else if (error instanceof Object) {
-      result.type = 'Object';
-      Object.assign(result, error);
+    result.type = 'Object';
+    Object.assign(result, error);
   } else {
-      result.type = 'Default';
-      result.instance = error;
+    result.type = 'Default';
+    result.instance = error;
   }
 
   return result;
@@ -70,8 +90,8 @@ class RpcEndpoint {
    * @param {string} [url="/vendor/rpc-client"]
    *    The path from which client scripts will be served.
    */
-  static serveScripts(router, url = "/vendor/rpc-client") {
-    router.use(url, express.static(path.join(__dirname, "clients")));
+  static serveScripts(router, url = '/vendor/rpc-client') {
+    router.use(url, express.static(path.join(__dirname, 'clients')));
   }
 
   /** @type {string} */
@@ -101,13 +121,13 @@ class RpcEndpoint {
    * @param {string|Object} [endpointOrOptions="/api"] The endpoint path or options object.
    * @param {Object} [options={}] Options object if first param is string.
    */
-  constructor(router, context, endpointOrOptions = "/api", options = {}) {
+  constructor(router, context, endpointOrOptions = '/api', options = {}) {
     // Handle both signatures: (router, context, "/api", options) and (router, context, options)
     if (typeof endpointOrOptions === 'string') {
       this.#endpoint = endpointOrOptions;
       this.#options = { ...options };
     } else {
-      this.#endpoint = endpointOrOptions.endpoint || "/api";
+      this.#endpoint = endpointOrOptions.endpoint || '/api';
       this.#options = { ...endpointOrOptions };
     }
 
@@ -147,23 +167,26 @@ class RpcEndpoint {
     }
 
     if (methodWhitelist && Array.isArray(methodWhitelist)) {
-      this.use('beforeCall', builtInMiddlewares.methodWhitelist(methodWhitelist));
+      this.use(
+        'beforeCall',
+        builtInMiddlewares.methodWhitelist(methodWhitelist)
+      );
     }
   }
 
   /**
    * Setup Express routes
-   * @param {Router} router 
-   * @param {C} context 
+   * @param {Router} router
+   * @param {C} context
    */
   #setupRoutes(router, context) {
     // Health check endpoint
     if (this.#options.healthCheck !== false) {
       router.get(`${this.#endpoint}/health`, (req, res) => {
-        res.json({ 
-          status: 'ok', 
+        res.json({
+          status: 'ok',
           timestamp: new Date().toISOString(),
-          version: require('../package.json').version
+          version: require('../package.json').version,
         });
       });
     }
@@ -178,47 +201,54 @@ class RpcEndpoint {
     // Main JSON-RPC endpoint
     router.post(this.#endpoint, async (req, res) => {
       const startTime = Date.now();
-      
+
       try {
         // Check if it's a batch request
         if (this.#batchHandler.isBatchRequest(req.body)) {
           this.#logger.info('Batch request received', {
             batchSize: req.body.length,
-            ip: req.ip
+            ip: req.ip,
           });
 
-          const results = await this.#batchHandler.processBatch(req.body, req, res, context);
-          
+          const results = await this.#batchHandler.processBatch(
+            req.body,
+            req,
+            res,
+            context
+          );
+
           // Only send response if there are results (non-notification requests)
           if (results.length > 0) {
             res.json(results);
           } else {
             res.status(204).end(); // No content for all-notification batch
           }
-          
+
           this.#logger.info('Batch request completed', {
             batchSize: req.body.length,
             responseCount: results.length,
-            duration: Date.now() - startTime
+            duration: Date.now() - startTime,
           });
-          
+
           return;
         }
 
         // Single request processing
         await this.#processSingleRequest(req, res, context, startTime);
-        
       } catch (error) {
-        this.#logger.error('Endpoint error', { error: error.message, stack: error.stack });
-        
+        this.#logger.error('Endpoint error', {
+          error: error.message,
+          stack: error.stack,
+        });
+
         res.json({
-          jsonrpc: "2.0",
+          jsonrpc: '2.0',
           id: null,
-          error: { 
-            code: -32603, 
-            message: "Internal error",
-            data: serializeError(error, true)
-          }
+          error: {
+            code: -32603,
+            message: 'Internal error',
+            data: serializeError(error, true),
+          },
         });
       }
     });
@@ -226,10 +256,10 @@ class RpcEndpoint {
 
   /**
    * Process a single JSON-RPC request
-   * @param {Request} req 
-   * @param {Response} res 
-   * @param {C} context 
-   * @param {number} startTime 
+   * @param {Request} req
+   * @param {Response} res
+   * @param {C} context
+   * @param {number} startTime
    */
   async #processSingleRequest(req, res, context, startTime) {
     const { jsonrpc, method, params, id } = req.body || {};
@@ -238,17 +268,23 @@ class RpcEndpoint {
     this.#logger.rpcCall(method, params, id, req);
 
     // Validate JSON-RPC 2.0 request
-    if (jsonrpc !== "2.0") {
+    if (jsonrpc !== '2.0') {
       return this.reply(res, {
         id,
-        error: { code: -32600, message: `Invalid Request: 'jsonrpc' must be '2.0'.` }
+        error: {
+          code: -32600,
+          message: `Invalid Request: 'jsonrpc' must be '2.0'.`,
+        },
       });
     }
 
-    if (typeof method !== "string") {
+    if (typeof method !== 'string') {
       return this.reply(res, {
         id,
-        error: { code: -32600, message: `Invalid Request: 'method' must be a string.` }
+        error: {
+          code: -32600,
+          message: `Invalid Request: 'method' must be a string.`,
+        },
       });
     }
 
@@ -256,12 +292,14 @@ class RpcEndpoint {
     if (!methodConfig) {
       return this.reply(res, {
         id,
-        error: { code: -32601, message: `Method "${method}" not found` }
+        error: { code: -32601, message: `Method "${method}" not found` },
       });
     }
 
-    const handler = typeof methodConfig === 'function' ? methodConfig : methodConfig.handler;
-    const schema = typeof methodConfig === 'object' ? methodConfig.schema : null;
+    const handler =
+      typeof methodConfig === 'function' ? methodConfig : methodConfig.handler;
+    const schema =
+      typeof methodConfig === 'object' ? methodConfig.schema : null;
 
     try {
       // Prepare middleware context
@@ -272,37 +310,51 @@ class RpcEndpoint {
         params,
         context,
         id,
-        startTime
+        startTime,
       };
 
       // Execute beforeCall middleware
-      middlewareContext = await this.#middleware.execute('beforeCall', middlewareContext);
+      middlewareContext = await this.#middleware.execute(
+        'beforeCall',
+        middlewareContext
+      );
 
       // Validate parameters if schema is provided
       if (schema) {
-        middlewareContext = await this.#middleware.execute('beforeValidation', middlewareContext);
-        
-        const validation = this.#validator.validate(middlewareContext.params, schema);
+        middlewareContext = await this.#middleware.execute(
+          'beforeValidation',
+          middlewareContext
+        );
+
+        const validation = this.#validator.validate(
+          middlewareContext.params,
+          schema
+        );
         if (!validation.valid) {
           const error = new Error('Validation failed');
           error.code = -32602;
           error.data = {
-            validationErrors: validation.errors.map(err => ({
+            validationErrors: validation.errors.map((err) => ({
               field: err.instancePath || err.schemaPath,
               message: err.message,
-              value: err.data
-            }))
+              value: err.data,
+            })),
           };
           throw error;
         }
-        
+
         middlewareContext.params = validation.data;
-        middlewareContext = await this.#middleware.execute('afterValidation', middlewareContext);
+        middlewareContext = await this.#middleware.execute(
+          'afterValidation',
+          middlewareContext
+        );
       }
 
       // Invoke the handler
-      const result = await Promise.resolve(handler(req, context, middlewareContext.params));
-      
+      const result = await Promise.resolve(
+        handler(req, context, middlewareContext.params)
+      );
+
       // Execute afterCall middleware
       middlewareContext.result = result;
       await this.#middleware.execute('afterCall', middlewareContext);
@@ -314,7 +366,6 @@ class RpcEndpoint {
       // Convert any BigInt/Date values before JSON-stringifying
       const safeResult = this.serializeBigIntsAndDates(result);
       this.reply(res, { id, result: safeResult });
-
     } catch (err) {
       const duration = Date.now() - startTime;
       this.#logger.rpcError(method, id, duration, err);
@@ -330,20 +381,22 @@ class RpcEndpoint {
           id,
           error: err,
           startTime,
-          duration
+          duration,
         });
       } catch (middlewareError) {
-        this.#logger.error('Error middleware failed', { error: middlewareError.message });
+        this.#logger.error('Error middleware failed', {
+          error: middlewareError.message,
+        });
       }
 
       this.reply(res, {
         id,
-        error: { 
-          code: err.code || -32603, 
-          message: err.message || `Internal error`, 
+        error: {
+          code: err.code || -32603,
+          message: err.message || `Internal error`,
           ...(err.data && { data: err.data }),
-          error: serializeError(err, true) 
-        }
+          error: serializeError(err, true),
+        },
       });
     }
   }
@@ -356,20 +409,25 @@ class RpcEndpoint {
    */
   addMethod(name, handlerOrConfig, schema = null) {
     if (typeof handlerOrConfig === 'function') {
-      this.#methods[name] = schema ? { handler: handlerOrConfig, schema } : handlerOrConfig;
+      this.#methods[name] = schema
+        ? { handler: handlerOrConfig, schema }
+        : handlerOrConfig;
     } else if (typeof handlerOrConfig === 'object' && handlerOrConfig.handler) {
       this.#methods[name] = handlerOrConfig;
     } else {
       throw new Error('Invalid handler configuration');
     }
 
-    this.#logger.debug('Method registered', { method: name, hasSchema: !!schema });
+    this.#logger.debug('Method registered', {
+      method: name,
+      hasSchema: !!schema,
+    });
   }
 
   /**
    * Add middleware for specific hooks
-   * @param {string} hook 
-   * @param {Function} middleware 
+   * @param {string} hook
+   * @param {Function} middleware
    */
   use(hook, middleware) {
     this.#middleware.use(hook, middleware);
@@ -377,7 +435,7 @@ class RpcEndpoint {
 
   /**
    * Remove method
-   * @param {string} name 
+   * @param {string} name
    */
   removeMethod(name) {
     delete this.#methods[name];
@@ -386,7 +444,7 @@ class RpcEndpoint {
 
   /**
    * Get method configuration
-   * @param {string} name 
+   * @param {string} name
    * @returns {any}
    */
   getMethod(name) {
@@ -448,11 +506,11 @@ class RpcEndpoint {
       middleware: {
         beforeCall: this.#middleware.getMiddlewares('beforeCall').length,
         afterCall: this.#middleware.getMiddlewares('afterCall').length,
-        onError: this.#middleware.getMiddlewares('onError').length
+        onError: this.#middleware.getMiddlewares('onError').length,
       },
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -466,7 +524,7 @@ class RpcEndpoint {
    * }} responsePayload The JSON-RPC response fields.
    */
   reply(res, { id, result, error }) {
-    const response = { jsonrpc: "2.0", id: id === undefined ? null : id };
+    const response = { jsonrpc: '2.0', id: id === undefined ? null : id };
 
     if (error) {
       response.error = error;
@@ -486,7 +544,7 @@ class RpcEndpoint {
    * @returns {any} A version of `value` safe for JSON serialization.
    */
   serializeBigIntsAndDates(value) {
-    if (typeof value === "bigint") {
+    if (typeof value === 'bigint') {
       // Convert BigInt to string
       return value.toString();
     } else if (Array.isArray(value)) {
@@ -495,7 +553,7 @@ class RpcEndpoint {
     } else if (value instanceof Date) {
       // Convert Date to ISO string (UTC)
       return value.toISOString();
-    } else if (value && typeof value === "object") {
+    } else if (value && typeof value === 'object') {
       // Recurse into plain objects
       const result = {};
       for (const [key, val] of Object.entries(value)) {
@@ -522,16 +580,17 @@ class RpcEndpoint {
   deserializeBigIntsAndDates(value) {
     // More comprehensive ISO date regex that handles:
     // - UTC: 2023-01-01T12:00:00.000Z
-    // - With timezone: 2023-01-01T12:00:00.000+01:00  
+    // - With timezone: 2023-01-01T12:00:00.000+01:00
     // - Without timezone: 2023-01-01T12:00:00.000 (treated as local)
-    const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/;
+    const ISO_DATE_REGEX =
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/;
 
     // 1. Check if it's a string that might be a BigInt or a Date
-    if (typeof value === "string") {
+    if (typeof value === 'string') {
       // BigInt check: matches digits (including negative), optionally ending in "n"
       // e.g., "42n", "42", "-42n", "-42"
       if (/^-?\d+n?$/.test(value)) {
-        return BigInt(value.replace(/n$/, ""));
+        return BigInt(value.replace(/n$/, ''));
       }
 
       // Date check: matches an ISO 8601 string
@@ -550,11 +609,11 @@ class RpcEndpoint {
     }
 
     // 3. If it's a plain object, recurse into each property
-    if (value && typeof value === "object") {
+    if (value && typeof value === 'object') {
       return Object.fromEntries(
         Object.entries(value).map(([key, val]) => [
           key,
-          this.deserializeBigIntsAndDates(val)
+          this.deserializeBigIntsAndDates(val),
         ])
       );
     }

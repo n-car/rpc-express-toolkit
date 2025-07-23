@@ -1,7 +1,10 @@
-"use strict";
+/**
+ * @file Middleware Manager
+ * @description Handles middleware execution for JSON-RPC requests including built-in middleware
+ */
 
 /**
- * Middleware manager for JSON-RPC operations
+ * Middleware manager for handling RPC middleware
  */
 class MiddlewareManager {
   constructor() {
@@ -10,7 +13,7 @@ class MiddlewareManager {
       afterCall: [],
       onError: [],
       beforeValidation: [],
-      afterValidation: []
+      afterValidation: [],
     };
   }
 
@@ -23,33 +26,33 @@ class MiddlewareManager {
     if (!this.middlewares[hook]) {
       throw new Error(`Unknown middleware hook: ${hook}`);
     }
-    
+
     if (typeof middleware !== 'function') {
       throw new Error('Middleware must be a function');
     }
-    
+
     this.middlewares[hook].push(middleware);
   }
 
   /**
    * Execute middlewares for a specific hook
-   * @param {string} hook 
-   * @param {Object} context 
+   * @param {string} hook
+   * @param {Object} context
    * @returns {Promise<Object>}
    */
   async execute(hook, context) {
     const middlewares = this.middlewares[hook] || [];
     let result = context;
-    
+
     for (const middleware of middlewares) {
       try {
         const middlewareResult = await middleware(result);
-        
+
         // If middleware returns an object, merge it with context
         if (middlewareResult && typeof middlewareResult === 'object') {
           result = { ...result, ...middlewareResult };
         }
-        
+
         // If middleware explicitly returns false, stop execution
         if (middlewareResult === false) {
           throw new Error('Middleware execution stopped');
@@ -63,13 +66,13 @@ class MiddlewareManager {
         throw error;
       }
     }
-    
+
     return result;
   }
 
   /**
    * Get all middlewares for a hook
-   * @param {string} hook 
+   * @param {string} hook
    * @returns {Function[]}
    */
   getMiddlewares(hook) {
@@ -78,14 +81,14 @@ class MiddlewareManager {
 
   /**
    * Remove all middlewares for a hook
-   * @param {string} hook 
+   * @param {string} hook
    */
   clear(hook) {
     if (hook) {
       this.middlewares[hook] = [];
     } else {
       // Clear all hooks
-      Object.keys(this.middlewares).forEach(h => {
+      Object.keys(this.middlewares).forEach((h) => {
         this.middlewares[h] = [];
       });
     }
@@ -93,12 +96,12 @@ class MiddlewareManager {
 
   /**
    * Remove a specific middleware from a hook
-   * @param {string} hook 
-   * @param {Function} middleware 
+   * @param {string} hook
+   * @param {Function} middleware
    */
   remove(hook, middleware) {
     if (!this.middlewares[hook]) return;
-    
+
     const index = this.middlewares[hook].indexOf(middleware);
     if (index > -1) {
       this.middlewares[hook].splice(index, 1);
@@ -112,80 +115,82 @@ class MiddlewareManager {
 const builtInMiddlewares = {
   /**
    * Rate limiting middleware
-   * @param {Object} options 
+   * @param {Object} options
    * @returns {Function}
    */
   rateLimit(options = {}) {
     const windowMs = options.windowMs || 60000; // 1 minute
     const max = options.max || 100; // 100 requests per window
     const message = options.message || 'Too many requests';
-    
+
     const requests = new Map();
-    
+
     return async (context) => {
       const { req } = context;
       const key = req.ip || req.connection?.remoteAddress || 'unknown';
       const now = Date.now();
-      
+
       // Clean old entries
       if (requests.has(key)) {
         const userRequests = requests.get(key);
-        const validRequests = userRequests.filter(time => now - time < windowMs);
+        const validRequests = userRequests.filter(
+          (time) => now - time < windowMs
+        );
         requests.set(key, validRequests);
       }
-      
+
       const userRequests = requests.get(key) || [];
-      
+
       if (userRequests.length >= max) {
         const error = new Error(message);
         error.code = -32000; // Custom JSON-RPC error code
         throw error;
       }
-      
+
       userRequests.push(now);
       requests.set(key, userRequests);
-      
+
       return context;
     };
   },
 
   /**
    * Authentication middleware
-   * @param {Function} authFunction 
+   * @param {Function} authFunction
    * @returns {Function}
    */
   auth(authFunction) {
     return async (context) => {
       const { req } = context;
       const isAuthenticated = await authFunction(req);
-      
+
       if (!isAuthenticated) {
         const error = new Error('Authentication required');
         error.code = -32001;
         throw error;
       }
-      
+
       return context;
     };
   },
 
   /**
    * CORS middleware
-   * @param {Object} options 
+   * @param {Object} options
    * @returns {Function}
    */
   cors(options = {}) {
     const origin = options.origin || '*';
     const methods = options.methods || ['POST'];
     const headers = options.headers || ['Content-Type'];
-    
+
     return async (context) => {
       const { res } = context;
-      
+
       res.header('Access-Control-Allow-Origin', origin);
       res.header('Access-Control-Allow-Methods', methods.join(', '));
       res.header('Access-Control-Allow-Headers', headers.join(', '));
-      
+
       return context;
     };
   },
@@ -203,22 +208,22 @@ const builtInMiddlewares = {
 
   /**
    * Method whitelist middleware
-   * @param {string[]} allowedMethods 
+   * @param {string[]} allowedMethods
    * @returns {Function}
    */
   methodWhitelist(allowedMethods) {
     return async (context) => {
       const { method } = context;
-      
+
       if (!allowedMethods.includes(method)) {
         const error = new Error(`Method '${method}' is not allowed`);
         error.code = -32601;
         throw error;
       }
-      
+
       return context;
     };
-  }
+  },
 };
 
 module.exports = { MiddlewareManager, builtInMiddlewares };

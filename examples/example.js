@@ -11,31 +11,30 @@ const context = { user: 'admin' };
 const rpc = new RpcEndpoint(app, context);
 
 rpc.addMethod('greet', (req, ctx, params) => {
-    const { name } = params;
-    return `Hello, ${name}!`;
+  const { name } = params;
+  return `Hello, ${name}!`;
 });
 
-rpc.addMethod('getTime', (req, ctx, params) => {
-    return new Date().toISOString();
-});
-
-rpc.addMethod('invalid-token', (req, ctx, params) => {
-    // Example: Validate the token from request headers
-    const token = req.headers.authorization;
-    if (!token || !isValidToken(token)) { // Replace `isValidToken` with your validation logic
-        throw new Error('Invalid or missing token');
-    }
-    return 'OK';
-});
+rpc.addMethod('getTime', () => new Date().toISOString());
 
 // Example token validation function (replace with your actual logic)
 function isValidToken(token) {
-    // Simple example: Check if the token matches a predefined value
-    const expectedToken = 'my-secret-token'; // Replace with your actual token handling logic
-    return token === expectedToken;
+  // Simple example: Check if the token matches a predefined value
+  const expectedToken = 'my-secret-token'; // Replace with your actual token handling logic
+  return token === expectedToken;
 }
+
+rpc.addMethod('invalid-token', (req) => {
+  // Example: Validate the token from request headers
+  const token = req.headers.authorization;
+  if (!token || !isValidToken(token)) {
+    // Replace `isValidToken` with your validation logic
+    throw new Error('Invalid or missing token');
+  }
+  return 'OK';
+});
 
 const PORT = 3000;
 app.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT}`);
+  console.log(`Server listening on port ${PORT}`);
 });

@@ -1,14 +1,16 @@
 /**
  * JSON-RPC 2.0 Client for browser and Node.js environments.
  * Handles BigInt and Date serialization/deserialization automatically.
- * 
+ *
  * Note: We extend BigInt.prototype.toJSON to handle automatic serialization
  * when JSON.stringify() is called, as BigInt doesn't have native JSON support.
  */
 
 // Extend BigInt prototype to handle JSON serialization
 if (typeof BigInt !== 'undefined' && !BigInt.prototype.toJSON) {
-  BigInt.prototype.toJSON = function() { return this.toString(); };
+  BigInt.prototype.toJSON = function () {
+    return this.toString();
+  };
 }
 
 // Polyfill for Node.js environments that don't have fetch
@@ -24,7 +26,9 @@ if (typeof fetch !== 'undefined') {
     if (typeof globalThis !== 'undefined' && globalThis.fetch) {
       fetchFn = globalThis.fetch;
     } else {
-      throw new Error('fetch is not available. Please install node-fetch or use Node.js 18+');
+      throw new Error(
+        'fetch is not available. Please install node-fetch or use Node.js 18+'
+      );
     }
   }
 }
@@ -44,12 +48,12 @@ class RpcClient {
   constructor(endpoint, defaultHeaders = {}, options = {}) {
     this.#endpoint = endpoint;
     this.#defaultHeaders = {
-      "Content-Type": "application/json", // Default header
+      'Content-Type': 'application/json', // Default header
       ...defaultHeaders, // Merge with user-provided defaults
     };
     // Initialize request ID counter with timestamp + random component for uniqueness
     this.#requestId = Date.now() * 1000 + Math.floor(Math.random() * 1000);
-    
+
     // Store fetch options for Node.js environments
     this.#fetchOptions = {};
     // SSL validation: advanced options (agent/ca) have been removed for simplicity and compatibility.
@@ -80,7 +84,7 @@ class RpcClient {
 
     // Build the payload according to the spec: params omitted if undefined/null
     const requestBody = {
-      jsonrpc: "2.0",
+      jsonrpc: '2.0',
       method,
       id: requestId,
     };
@@ -90,7 +94,7 @@ class RpcClient {
 
     try {
       const response = await fetchFn(this.#endpoint, {
-        method: "POST",
+        method: 'POST',
         headers: {
           ...this.#defaultHeaders,
           ...overrideHeaders,
@@ -102,17 +106,21 @@ class RpcClient {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `HTTP Error: ${response.status} ${response.statusText}`
+        );
       }
 
       const responseBody = await response.json();
 
-      if (responseBody.error) { throw responseBody.error; }
+      if (responseBody.error) {
+        throw responseBody.error;
+      }
 
       // Convert back BigInts and Dates in the result
       return this.deserializeBigIntsAndDates(responseBody.result);
     } catch (error) {
-      console.error("RPC call failed:", error);
+      console.error('RPC call failed:', error);
       throw error;
     }
   }
@@ -135,11 +143,11 @@ class RpcClient {
    * @returns {Promise<Array<any>>} Array of results in the same order as requests.
    */
   async batch(requests, overrideHeaders = {}) {
-    const batchRequests = requests.map(req => {
+    const batchRequests = requests.map((req) => {
       const obj = {
-        jsonrpc: "2.0",
+        jsonrpc: '2.0',
         method: req.method,
-        id: req.id !== undefined ? req.id : this.#generateId()
+        id: req.id !== undefined ? req.id : this.#generateId(),
       };
       if (req.params !== undefined && req.params !== null) {
         obj.params = req.params;
@@ -149,7 +157,7 @@ class RpcClient {
 
     try {
       const response = await fetchFn(this.#endpoint, {
-        method: "POST",
+        method: 'POST',
         headers: {
           ...this.#defaultHeaders,
           ...overrideHeaders,
@@ -159,14 +167,16 @@ class RpcClient {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `HTTP Error: ${response.status} ${response.statusText}`
+        );
       }
 
       const responseBody = await response.json();
 
       // Handle batch response
       if (Array.isArray(responseBody)) {
-        return responseBody.map(res => {
+        return responseBody.map((res) => {
           if (res.error) {
             throw res.error;
           }
@@ -180,7 +190,7 @@ class RpcClient {
         return [this.deserializeBigIntsAndDates(responseBody.result)];
       }
     } catch (error) {
-      console.error("Batch RPC call failed:", error);
+      console.error('Batch RPC call failed:', error);
       throw error;
     }
   }
@@ -192,7 +202,7 @@ class RpcClient {
    * @returns {any}
    */
   serializeBigIntsAndDates(value) {
-    if (typeof value === "bigint") {
+    if (typeof value === 'bigint') {
       // Convert BigInt to string
       return value.toString();
     } else if (Array.isArray(value)) {
@@ -201,7 +211,7 @@ class RpcClient {
     } else if (value instanceof Date) {
       // Convert Date to ISO string (UTC)
       return value.toISOString();
-    } else if (value && typeof value === "object") {
+    } else if (value && typeof value === 'object') {
       // Recurse into plain objects
       const result = {};
       for (const [key, val] of Object.entries(value)) {
@@ -226,14 +236,15 @@ class RpcClient {
     // - UTC: 2023-01-01T12:00:00.000Z
     // - With timezone: 2023-01-01T12:00:00.000+01:00
     // - Without timezone: 2023-01-01T12:00:00.000 (treated as local)
-    const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/;
+    const ISO_DATE_REGEX =
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/;
 
     // 1. Check if it's a string that might be a BigInt or a Date
-    if (typeof value === "string") {
+    if (typeof value === 'string') {
       // BigInt check: matches digits (including negative), optionally ending in "n"
       // e.g., "42n", "42", "-42n", "-42"
       if (/^-?\d+n?$/.test(value)) {
-        return BigInt(value.replace(/n$/, ""));
+        return BigInt(value.replace(/n$/, ''));
       }
       // Date check: matches an ISO 8601 string
       if (ISO_DATE_REGEX.test(value)) {
@@ -251,7 +262,7 @@ class RpcClient {
     }
 
     // 3. If it's a plain object, recurse into each property
-    if (value && typeof value === "object") {
+    if (value && typeof value === 'object') {
       return Object.fromEntries(
         Object.entries(value).map(([key, val]) => [
           key,

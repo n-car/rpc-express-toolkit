@@ -1,7 +1,6 @@
-"use strict";
-
 /**
- * Batch request handler for JSON-RPC 2.0
+ * @file BatchHandler Class
+ * @description Handles JSON-RPC 2.0 batch requests processing multiple requests in a single call
  */
 class BatchHandler {
   constructor(endpoint) {
@@ -10,7 +9,7 @@ class BatchHandler {
 
   /**
    * Check if request is a batch request
-   * @param {any} body 
+   * @param {any} body
    * @returns {boolean}
    */
   isBatchRequest(body) {
@@ -19,32 +18,43 @@ class BatchHandler {
 
   /**
    * Validate batch request
-   * @param {Array} batch 
+   * @param {Array} batch
    * @returns {Object}
    */
   validateBatch(batch) {
     if (!Array.isArray(batch)) {
       return {
         valid: false,
-        error: { code: -32600, message: 'Invalid Request: Batch must be an array' }
+        error: {
+          code: -32600,
+          message: 'Invalid Request: Batch must be an array',
+        },
       };
     }
 
     if (batch.length === 0) {
       return {
         valid: false,
-        error: { code: -32600, message: 'Invalid Request: Batch cannot be empty' }
+        error: {
+          code: -32600,
+          message: 'Invalid Request: Batch cannot be empty',
+        },
       };
     }
 
     // Check for duplicate IDs in the batch
-    const ids = batch.map(req => req.id).filter(id => id !== undefined && id !== null);
+    const ids = batch
+      .map((req) => req.id)
+      .filter((id) => id !== undefined && id !== null);
     const uniqueIds = new Set(ids);
-    
+
     if (ids.length !== uniqueIds.size) {
       return {
         valid: false,
-        error: { code: -32600, message: 'Invalid Request: Duplicate IDs in batch' }
+        error: {
+          code: -32600,
+          message: 'Invalid Request: Duplicate IDs in batch',
+        },
       };
     }
 
@@ -53,20 +63,22 @@ class BatchHandler {
 
   /**
    * Process a batch of JSON-RPC requests
-   * @param {Array} batch 
-   * @param {Object} req 
-   * @param {Object} res 
-   * @param {any} context 
+   * @param {Array} batch
+   * @param {Object} req
+   * @param {Object} res
+   * @param {any} context
    * @returns {Promise<Array>}
    */
   async processBatch(batch, req, res, context) {
     const validation = this.validateBatch(batch);
     if (!validation.valid) {
-      return [{ 
-        jsonrpc: '2.0', 
-        id: null, 
-        error: validation.error 
-      }];
+      return [
+        {
+          jsonrpc: '2.0',
+          id: null,
+          error: validation.error,
+        },
+      ];
     }
 
     // Process all requests in parallel
@@ -80,51 +92,51 @@ class BatchHandler {
           error: {
             code: error.code || -32603,
             message: error.message || 'Internal error',
-            data: { batchIndex: index }
-          }
+            data: { batchIndex: index },
+          },
         };
       }
     });
 
     const results = await Promise.all(promises);
-    
+
     // Filter out notifications (requests without id)
-    return results.filter(result => result !== null);
+    return results.filter((result) => result !== null);
   }
 
   /**
    * Process a single request within a batch
-   * @param {Object} request 
-   * @param {Object} req 
-   * @param {any} context 
-   * @param {number} batchIndex 
+   * @param {Object} request
+   * @param {Object} req
+   * @param {any} context
+   * @param {number} batchIndex
    * @returns {Promise<Object|null>}
    */
   async processSingleRequest(request, req, context, batchIndex) {
     const { jsonrpc, method, params, id } = request;
 
     // Validate JSON-RPC 2.0 request structure
-    if (jsonrpc !== "2.0") {
+    if (jsonrpc !== '2.0') {
       return {
         jsonrpc: '2.0',
         id: id || null,
-        error: { 
-          code: -32600, 
+        error: {
+          code: -32600,
           message: `Invalid Request: 'jsonrpc' must be '2.0'`,
-          data: { batchIndex }
-        }
+          data: { batchIndex },
+        },
       };
     }
 
-    if (typeof method !== "string") {
+    if (typeof method !== 'string') {
       return {
         jsonrpc: '2.0',
         id: id || null,
-        error: { 
-          code: -32600, 
+        error: {
+          code: -32600,
           message: `Invalid Request: 'method' must be a string`,
-          data: { batchIndex }
-        }
+          data: { batchIndex },
+        },
       };
     }
 
@@ -133,36 +145,42 @@ class BatchHandler {
       return {
         jsonrpc: '2.0',
         id: id || null,
-        error: { 
-          code: -32601, 
+        error: {
+          code: -32601,
           message: `Method "${method}" not found`,
-          data: { batchIndex }
-        }
+          data: { batchIndex },
+        },
       };
     }
 
     // If no id is provided, this is a notification - don't return response
     const isNotification = id === undefined || id === null;
 
+    // Initialize middleware context
+    let middlewareContext = {
+      req,
+      res: null, // No response object for batch items
+      method,
+      params,
+      context,
+      batchIndex,
+      isNotification,
+    };
+
     try {
       // Execute middleware
-      let middlewareContext = {
-        req,
-        res: null, // No response object for batch items
-        method,
-        params,
-        context,
-        batchIndex,
-        isNotification
-      };
-
       if (this.endpoint.middleware) {
-        middlewareContext = await this.endpoint.middleware.execute('beforeCall', middlewareContext);
+        middlewareContext = await this.endpoint.middleware.execute(
+          'beforeCall',
+          middlewareContext
+        );
       }
 
       // Execute the handler
-      const result = await Promise.resolve(handler(req, context, middlewareContext.params));
-      
+      const result = await Promise.resolve(
+        handler(req, context, middlewareContext.params)
+      );
+
       // Execute after middleware
       if (this.endpoint.middleware) {
         middlewareContext.result = result;
@@ -176,13 +194,12 @@ class BatchHandler {
 
       // Serialize the result
       const safeResult = this.endpoint.serializeBigIntsAndDates(result);
-      
+
       return {
         jsonrpc: '2.0',
         id,
-        result: safeResult
+        result: safeResult,
       };
-
     } catch (error) {
       // Execute error middleware
       if (this.endpoint.middleware) {
@@ -190,7 +207,7 @@ class BatchHandler {
           await this.endpoint.middleware.execute('onError', {
             ...middlewareContext,
             error,
-            batchIndex
+            batchIndex,
           });
         } catch (middlewareError) {
           // Ignore middleware errors in error handling
@@ -208,28 +225,30 @@ class BatchHandler {
         error: {
           code: error.code || -32603,
           message: error.message || 'Internal error',
-          data: { batchIndex }
-        }
+          data: { batchIndex },
+        },
       };
     }
   }
 
   /**
    * Get batch statistics
-   * @param {Array} batch 
+   * @param {Array} batch
    * @returns {Object}
    */
   getBatchStats(batch) {
-    const notifications = batch.filter(req => req.id === undefined || req.id === null).length;
+    const notifications = batch.filter(
+      (req) => req.id === undefined || req.id === null
+    ).length;
     const requests = batch.length - notifications;
-    const methods = [...new Set(batch.map(req => req.method))];
-    
+    const methods = [...new Set(batch.map((req) => req.method))];
+
     return {
       total: batch.length,
       requests,
       notifications,
       uniqueMethods: methods.length,
-      methods
+      methods,
     };
   }
 }
