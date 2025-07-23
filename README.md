@@ -576,8 +576,8 @@ const devClientWithCA = new RpcClient('https://localhost:3000/api', {
     ca // Pass your self-signed CA certificate
     // or: agent: new require('https').Agent({ ca, rejectUnauthorized: true })
 });
+```  
 
-**⚠️ Security Warning**: Use `rejectUnauthorized: false` for development only. For better security, always prefer the `ca` solution to accept only your self-signed CA. In production always use valid certificates signed by a trusted CA.
 ```
 
 **⚠️ Security Warning**: Use `rejectUnauthorized: false` for development only. For better security, always prefer the `ca` solution to accept only your self-signed CA. In production always use valid certificates signed by a trusted CA.
@@ -620,12 +620,8 @@ rpc.use('beforeCall', builtInMiddlewares.methodWhitelist([
 
 // Request timing
 rpc.use('beforeCall', builtInMiddlewares.timing());
+```  
 ```
-    if (!token || !isValidToken(token)) { // Replace `isValidToken` with your validation logic
-        throw new Error('Invalid or missing token');
-    }
-    return 'OK';
-});
 
 // Example token validation function (replace with your actual logic)
 function isValidToken(token) {
