@@ -10,6 +10,7 @@ class SchemaValidator {
       allErrors: true,
       removeAdditional: options.removeAdditional || false,
       useDefaults: options.useDefaults !== false,
+      coerceTypes: options.coerceTypes || false,
       ...options.ajvOptions,
     });
 
