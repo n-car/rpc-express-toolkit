@@ -345,4 +345,4 @@ class RpcClient {
 }
 
 export default RpcClient;
-module.exports.RpcClient = RpcClient;
+export { RpcClient };
