@@ -38,12 +38,15 @@ class RpcClient {
   #defaultHeaders;
   #requestId;
   #fetchOptions;
+  #options;
 
   /**
    * @param {string} endpoint The JSON-RPC endpoint URL.
    * @param {Object} [defaultHeaders={}] Optional default headers to include in requests.
    * @param {Object} [options={}] Optional configuration options.
    * @param {boolean} [options.rejectUnauthorized=true] Whether to reject unauthorized SSL certificates. Set to false for development with self-signed certificates.
+   * @param {boolean} [options.safeStringEnabled=true] Whether to prefix strings with 'S:' to avoid confusion with BigInt values.
+   * @param {boolean} [options.safeDateEnabled=true] Whether to prefix dates with 'D:' to avoid confusion with ISO string values.
    */
   constructor(endpoint, defaultHeaders = {}, options = {}) {
     this.#endpoint = endpoint;
@@ -53,6 +56,15 @@ class RpcClient {
     };
     // Initialize request ID counter with timestamp + random component for uniqueness
     this.#requestId = Date.now() * 1000 + Math.floor(Math.random() * 1000);
+
+    // Store options
+    this.#options = {
+      safeStringEnabled: options.safeStringEnabled !== false, // Default true
+      safeDateEnabled: options.safeDateEnabled !== false, // Default true
+      warnOnUnsafeString: options.warnOnUnsafeString !== false, // Default true
+      warnOnUnsafeDate: options.warnOnUnsafeDate !== false, // Default true
+      ...options
+    };
 
     // Store fetch options for Node.js environments
     this.#fetchOptions = {};
@@ -89,7 +101,8 @@ class RpcClient {
       id: requestId,
     };
     if (params !== undefined && params !== null) {
-      requestBody.params = params;
+      // Serialize parameters to handle BigInt and safe strings
+      requestBody.params = this.serializeBigIntsAndDates(params);
     }
 
     try {
@@ -97,6 +110,9 @@ class RpcClient {
         method: 'POST',
         headers: {
           ...this.#defaultHeaders,
+          // Add safe options headers so server knows what client expects
+          'X-RPC-SafeString-Enabled': this.#options.safeStringEnabled ? 'true' : 'false',
+          'X-RPC-SafeDate-Enabled': this.#options.safeDateEnabled ? 'true' : 'false',
           ...overrideHeaders,
         },
         // Since we have BigInt.prototype.toJSON, we don't need manual serialization
@@ -117,8 +133,18 @@ class RpcClient {
         throw responseBody.error;
       }
 
-      // Convert back BigInts and Dates in the result
-      return this.deserializeBigIntsAndDates(responseBody.result);
+      // Check server's safe options from response headers
+      const serverSafeStringEnabled = response.headers.get('X-RPC-SafeString-Enabled') === 'true';
+      const serverSafeDateEnabled = response.headers.get('X-RPC-SafeDate-Enabled') === 'true';
+
+      // Create deserialization options based on server's configuration
+      const deserializationOptions = {
+        safeStringEnabled: serverSafeStringEnabled,
+        safeDateEnabled: serverSafeDateEnabled
+      };
+
+      // Convert back BigInts and Dates in the result using server's options
+      return this.deserializeBigIntsAndDates(responseBody.result, deserializationOptions);
     } catch (error) {
       console.error('RPC call failed:', error);
       throw error;
@@ -150,7 +176,8 @@ class RpcClient {
         id: req.id !== undefined ? req.id : this.#generateId(),
       };
       if (req.params !== undefined && req.params !== null) {
-        obj.params = req.params;
+        // Serialize parameters to handle BigInt and safe strings
+        obj.params = this.serializeBigIntsAndDates(req.params);
       }
       return obj;
     });
@@ -160,6 +187,9 @@ class RpcClient {
         method: 'POST',
         headers: {
           ...this.#defaultHeaders,
+          // Add safe options headers so server knows what client expects
+          'X-RPC-SafeString-Enabled': this.#options.safeStringEnabled ? 'true' : 'false',
+          'X-RPC-SafeDate-Enabled': this.#options.safeDateEnabled ? 'true' : 'false',
           ...overrideHeaders,
         },
         body: JSON.stringify(batchRequests),
@@ -174,20 +204,30 @@ class RpcClient {
 
       const responseBody = await response.json();
 
+      // Check server's safe options from response headers
+      const serverSafeStringEnabled = response.headers.get('X-RPC-SafeString-Enabled') === 'true';
+      const serverSafeDateEnabled = response.headers.get('X-RPC-SafeDate-Enabled') === 'true';
+
+      // Create deserialization options based on server's configuration
+      const deserializationOptions = {
+        safeStringEnabled: serverSafeStringEnabled,
+        safeDateEnabled: serverSafeDateEnabled
+      };
+
       // Handle batch response
       if (Array.isArray(responseBody)) {
         return responseBody.map((res) => {
           if (res.error) {
             throw res.error;
           }
-          return this.deserializeBigIntsAndDates(res.result);
+          return this.deserializeBigIntsAndDates(res.result, deserializationOptions);
         });
       } else {
         // Single response in batch
         if (responseBody.error) {
           throw responseBody.error;
         }
-        return [this.deserializeBigIntsAndDates(responseBody.result)];
+        return [this.deserializeBigIntsAndDates(responseBody.result, deserializationOptions)];
       }
     } catch (error) {
       console.error('Batch RPC call failed:', error);
@@ -203,14 +243,21 @@ class RpcClient {
    */
   serializeBigIntsAndDates(value) {
     if (typeof value === 'bigint') {
-      // Convert BigInt to string
-      return value.toString();
+      // Convert BigInt to string with 'n' suffix for proper deserialization
+      return value.toString() + 'n';
+    } else if (value instanceof Date) {
+      // Convert Date to ISO string with D: prefix if safeDateEnabled
+      const isoString = value.toISOString();
+      return this.#options.safeDateEnabled ? `D:${isoString}` : isoString;
+    } else if (typeof value === 'string') {
+      // Add S: prefix if safeStringEnabled is true
+      if (this.#options.safeStringEnabled) {
+        return 'S:' + value;
+      }
+      return value;
     } else if (Array.isArray(value)) {
       // Recurse into arrays
       return value.map((v) => this.serializeBigIntsAndDates(v));
-    } else if (value instanceof Date) {
-      // Convert Date to ISO string (UTC)
-      return value.toISOString();
     } else if (value && typeof value === 'object') {
       // Recurse into plain objects
       const result = {};
@@ -229,9 +276,16 @@ class RpcClient {
    * and ISO 8601 date strings back to Date objects.
    *
    * @param {any} value The value to deserialize.
+   * @param {Object} [options] Custom deserialization options (uses client options if not provided).
+   * @param {boolean} [options.safeStringEnabled] Whether to expect S: prefixed strings.
+   * @param {boolean} [options.safeDateEnabled] Whether to expect D: prefixed dates.
    * @returns {any}
    */
-  deserializeBigIntsAndDates(value) {
+  deserializeBigIntsAndDates(value, options = null) {
+    // Use provided options or fall back to client options
+    const safeStringEnabled = options ? options.safeStringEnabled : this.#options.safeStringEnabled;
+    const safeDateEnabled = options ? options.safeDateEnabled : this.#options.safeDateEnabled;
+
     // More comprehensive ISO date regex that handles:
     // - UTC: 2023-01-01T12:00:00.000Z
     // - With timezone: 2023-01-01T12:00:00.000+01:00
@@ -239,15 +293,31 @@ class RpcClient {
     const ISO_DATE_REGEX =
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/;
 
-    // 1. Check if it's a string that might be a BigInt or a Date
+    // 1. Check if it's a string that might be a BigInt, Date, or safe string
     if (typeof value === 'string') {
-      // BigInt check: matches digits (including negative), optionally ending in "n"
-      // e.g., "42n", "42", "-42n", "-42"
-      if (/^-?\d+n?$/.test(value)) {
-        return BigInt(value.replace(/n$/, ''));
+      // Safe string check: if safeStringEnabled and starts with S:
+      if (safeStringEnabled && value.startsWith('S:')) {
+        return value.substring(2); // Remove 'S:' prefix
       }
-      // Date check: matches an ISO 8601 string
-      if (ISO_DATE_REGEX.test(value)) {
+
+      // Safe date check: if safeDateEnabled and starts with D:
+      if (safeDateEnabled && value.startsWith('D:')) {
+        const isoString = value.substring(2); // Remove 'D:' prefix
+        const date = new Date(isoString);
+        // Double-check that we got a valid date
+        if (!isNaN(date.getTime())) {
+          return date;
+        }
+      }
+
+      // BigInt check: only convert strings that explicitly end with "n"
+      // e.g., "42n", "-42n" but NOT "42", "0123456"
+      if (/^-?\d+n$/.test(value)) {
+        return BigInt(value.slice(0, -1)); // Remove 'n' and convert
+      }
+      
+      // Date check: matches an ISO 8601 string (only if safeDateEnabled is false)
+      if (!safeDateEnabled && ISO_DATE_REGEX.test(value)) {
         const date = new Date(value);
         // Ensure it's valid
         if (!isNaN(date.getTime())) {
@@ -258,7 +328,7 @@ class RpcClient {
 
     // 2. If it's an array, handle each element
     if (Array.isArray(value)) {
-      return value.map((v) => this.deserializeBigIntsAndDates(v));
+      return value.map((v) => this.deserializeBigIntsAndDates(v, options));
     }
 
     // 3. If it's a plain object, recurse into each property
@@ -266,7 +336,7 @@ class RpcClient {
       return Object.fromEntries(
         Object.entries(value).map(([key, val]) => [
           key,
-          this.deserializeBigIntsAndDates(val),
+          this.deserializeBigIntsAndDates(val, options),
         ])
       );
     }

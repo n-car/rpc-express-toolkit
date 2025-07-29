@@ -1,10 +1,10 @@
-## 🔢 Handling Numeric Strings with Leading Zeros
+# 🔢 Handling Numeric Strings with Leading Zeros
 
-### Problem Description
+## Problem Description
 
 When using schema validation with `coerceTypes: true`, numeric strings with leading zeros like `'0123456'` may be automatically converted to numbers, losing the leading zeros.
 
-### When This Happens
+## When This Happens
 
 ```javascript
 // ⚠️ PROBLEMATIC: Will convert '0123456' to 123456
@@ -37,9 +37,9 @@ rpc.addMethod('problematicMethod', {
 | '0123456'  | string      | true     | '0123456'  | string   | ✅ Safe |
 | '0123456'  | number      | true     | 123456     | number   | ⚠️ Loses zeros |
 
-### Solutions
+## Solutions
 
-#### Solution 1: Disable Type Coercion (Recommended)
+### Solution 1: Disable Type Coercion (Recommended)
 
 ```javascript
 const rpc = new RpcEndpoint(app, context, {
@@ -49,7 +49,7 @@ const rpc = new RpcEndpoint(app, context, {
 });
 ```
 
-#### Solution 2: Use String Schema for IDs/Codes
+### Solution 2: Use String Schema for IDs/Codes
 
 ```javascript
 rpc.addMethod('handleUserID', {
@@ -71,7 +71,7 @@ rpc.addMethod('handleUserID', {
 });
 ```
 
-#### Solution 3: Pattern Validation for Numeric Strings
+### Solution 3: Pattern Validation for Numeric Strings
 
 ```javascript
 rpc.addMethod('handleProductCode', {
@@ -93,7 +93,7 @@ rpc.addMethod('handleProductCode', {
 });
 ```
 
-#### Solution 4: Custom Validation with anyOf
+### Solution 4: Custom Validation with anyOf
 
 ```javascript
 rpc.addMethod('flexibleId', {
@@ -116,14 +116,14 @@ rpc.addMethod('flexibleId', {
 });
 ```
 
-### Best Practices
+## Best Practices
 
 1. **For IDs, codes, phone numbers**: Always use `type: 'string'`
 2. **For calculations**: Use `type: 'number'` but document the limitation
 3. **For mixed use**: Accept string and convert manually in handler
 4. **Default recommendation**: Set `coerceTypes: false` for predictable behavior
 
-### Real-World Examples
+## Real-World Examples
 
 ```javascript
 // ✅ GOOD: Preserves leading zeros for phone numbers

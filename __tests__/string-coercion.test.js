@@ -11,7 +11,11 @@ describe('String Coercion Tests', () => {
     app.use(express.json());
     
     const context = {};
-    rpc = new RpcEndpoint(app, context);
+    // Disable safe options for backward compatibility in tests
+    rpc = new RpcEndpoint(app, context, {
+      safeStringEnabled: false,
+      safeDateEnabled: false
+    });
   });
 
   test('should preserve leading zeros in string parameters without validation', async () => {
@@ -77,7 +81,9 @@ describe('String Coercion Tests', () => {
       endpoint: '/api-coerce',
       validation: {
         coerceTypes: true
-      }
+      },
+      safeStringEnabled: false,
+      safeDateEnabled: false
     });
 
     rpcWithCoercion.addMethod('coerceToNumber', {
@@ -119,7 +125,9 @@ describe('String Coercion Tests', () => {
       endpoint: '/api-no-coerce',
       validation: {
         coerceTypes: false
-      }
+      },
+      safeStringEnabled: false,
+      safeDateEnabled: false
     });
 
     rpcNoCoercion.addMethod('strictString', {
@@ -160,7 +168,9 @@ describe('String Coercion Tests', () => {
       endpoint: '/api-strict',
       validation: {
         coerceTypes: false
-      }
+      },
+      safeStringEnabled: false,
+      safeDateEnabled: false
     });
 
     rpcNoCoercion.addMethod('strictNumber', {

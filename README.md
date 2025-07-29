@@ -66,12 +66,13 @@ const express = require('express');
 const { RpcEndpoint } = require('rpc-express-toolkit');
 
 const app = express();
+// Configure JSON middleware yourself
 app.use(express.json());
 
 // Context object to pass to method handlers
 const context = { database: db, config: config };
 
-// Create JSON-RPC server with clean API
+// Create JSON-RPC server (validates JSON middleware compatibility)
 const rpc = new RpcEndpoint(app, context);
 
 // Add simple methods
@@ -173,6 +174,22 @@ const rpc = new RpcEndpoint(app, context, {
         removeAdditional: true
     },
     
+    // Safe serialization options
+    safeStringEnabled: true,    // Add 'S:' prefix to strings (default: true)
+    safeDateEnabled: true,      // Add 'D:' prefix to dates (default: true)
+    warnOnUnsafeString: true,   // Warn when BigInt found with safeStringEnabled=false (default: true)
+    warnOnUnsafeDate: true,     // Warn when Date found with safeDateEnabled=false (default: true)
+    
+    // Other middleware options
+    cors: true,
+    rateLimit: { windowMs: 15 * 60 * 1000, max: 100 },
+    jsonOptions: {              // Options to pass to express.json()
+        limit: '10mb',          // Body size limit (default: uses maxBodySize)
+        strict: true,           // Only parse arrays and objects
+        type: 'application/json' // Content-Type to parse
+    },
+    warnOnUnsafeDate: true,     // Warn when Date found with safeDateEnabled=false (default: true)
+    
     // Feature flags
     healthCheck: true,
     metrics: true,
@@ -213,6 +230,67 @@ rpc.addMethod('getUser', {
 ```
 
 ### Middleware System
+
+**JSON Middleware Validation**
+
+RpcEndpoint validates that your Express router can handle JSON parsing properly:
+
+```javascript
+const express = require('express');
+const { RpcEndpoint } = require('rpc-express-toolkit');
+
+const app = express();
+app.use(express.json()); // You must configure JSON middleware
+
+try {
+  // RpcEndpoint validates JSON middleware compatibility during construction
+  const rpc = new RpcEndpoint(app, context);
+  console.log('✅ JSON middleware validation passed');
+} catch (error) {
+  console.error('❌ JSON middleware validation failed:', error.message);
+  // This router cannot handle JSON-RPC requests properly.
+}
+```
+
+**Benefits of JSON Middleware Validation:**
+
+- 🛡️ **Early Error Detection**: Catches JSON parsing issues at startup, not runtime
+- 🎯 **Express Version Compatibility**: Ensures Express ≥4.16.0 for `express.json()` support
+- 📋 **Clear Error Messages**: Provides specific solutions for configuration problems
+- 🔍 **Debug Information**: Logs validation status for troubleshooting
+
+**JSON Middleware Validation:**
+
+The system validates JSON middleware functionality during RpcEndpoint construction:
+
+**Customizing JSON Options:**
+```javascript
+const rpc = new RpcEndpoint(app, context, {
+    endpoint: '/api',
+    jsonOptions: {
+        limit: '50mb',           // Increase body size limit
+        strict: false,           // Allow non-objects/arrays
+        type: ['application/json', 'text/plain'] // Accept multiple content types
+    }
+});
+```
+
+**Common JSON Validation Errors:**
+
+```javascript
+// Error: Express version too old
+// Solution: Update Express to ≥4.16.0
+npm install express@latest
+
+// Error: No JSON middleware configured
+// Solution: Add JSON middleware to your router
+app.use(express.json());
+
+// Error: body-parser required for older Express
+// Solution: Install and configure body-parser
+npm install body-parser
+app.use(require('body-parser').json());
+```
 
 ## API Reference
 
@@ -504,6 +582,144 @@ const client = new RpcClient('http://localhost:3000/api');
 const bigNum = await client.call('getBigNumber'); // Returns BigInt
 const date = await client.call('getCurrentTime'); // Returns Date object
 ```
+
+### Handling Numeric Strings with Leading Zeros
+
+When working with numeric strings that need to preserve leading zeros (like IDs, codes, or references), be aware of BigInt auto-conversion behavior:
+
+```javascript
+// ✅ CORRECT: Numeric strings without 'n' suffix are preserved
+await client.call('processCode', { code: '0123456' }); 
+// → Server receives: '0123456' (string)
+// → Client receives: '0123456' (string) ✅
+
+// ❌ POTENTIAL ISSUE: Strings ending with 'n' are converted to BigInt
+await client.call('processRef', { ref: '012312031203120301230123123n' });
+// → Server receives: '012312031203120301230123123n' (string)  
+// → Client receives: 12312031203120301230123123n (BigInt, leading zero lost!) ❌
+
+// ✅ SOLUTIONS for strings that should remain strings:
+
+// Solution 1: Use schema validation to force string type
+rpc.addMethod('processRef', (req, ctx, params) => {
+    // params.ref will always be a string due to schema validation
+    return { processed: params.ref };
+}, {
+    type: 'object',
+    properties: {
+        ref: { type: 'string' }  // Forces string type, prevents BigInt conversion
+    }
+});
+
+// Solution 2: Use escape prefix for problematic strings
+await client.call('processRef', { ref: 'S:012312031203120301230123123n' });
+// Server strips prefix: const actualRef = params.ref.replace(/^S:/, '');
+
+// Solution 3: Use different suffix
+await client.call('processRef', { ref: '012312031203120301230123123_id' });
+// → Remains string: '012312031203120301230123123_id' ✅
+```
+
+**Note:** Only strings explicitly ending with 'n' and containing only digits are auto-converted to BigInt. This preserves leading zeros for most numeric strings while maintaining BigInt functionality for intentional use.
+
+### Safe Serialization with Prefixes
+
+The toolkit provides safe serialization options to prevent confusion between strings, BigInt values, and dates:
+
+```javascript
+// Enable safe serialization (default: true for both)
+const rpc = new RpcEndpoint(app, context, {
+    safeStringEnabled: true,  // Strings get 'S:' prefix
+    safeDateEnabled: true     // Dates get 'D:' prefix
+});
+
+// Example serialization with safe options enabled:
+rpc.addMethod('getComplexData', () => {
+    return {
+        message: "Hello World",              // → "S:Hello World"
+        timestamp: new Date(),               // → "D:2023-06-15T10:30:00.000Z"
+        count: 42n,                         // → "42n"
+        value: 123                          // → 123 (unchanged)
+    };
+});
+
+// Client automatically deserializes based on server headers:
+const client = new RpcClient('http://localhost:3000/api');
+const result = await client.call('getComplexData');
+// result.message: "Hello World" (string, prefix removed)
+// result.timestamp: Date object
+// result.count: 42n (BigInt)
+// result.value: 123 (number)
+```
+
+#### Cross-Configuration Support
+
+Client and server can have different safe options - they communicate automatically via HTTP headers:
+
+```javascript
+// Server with safe dates disabled
+const rpc = new RpcEndpoint(app, context, {
+    safeStringEnabled: true,   // S: prefix for strings
+    safeDateEnabled: false     // No prefix for dates
+});
+
+// Client with safe dates enabled  
+const client = new RpcClient('http://localhost:3000/api', {
+    safeStringEnabled: true,   // S: prefix for strings
+    safeDateEnabled: true      // D: prefix for dates
+});
+
+// Data flows correctly despite different configurations:
+// Client sends: { date: "D:2023-01-01T00:00:00.000Z" }
+// Server receives: Date object (auto-deserialized using client's headers)
+// Server responds: { date: "2023-01-01T00:00:00.000Z" } (no prefix, per server config)
+// Client receives: Date object (auto-deserialized using server's headers)
+```
+
+#### Benefits of Safe Prefixes
+
+- **Prevents ambiguity:** `"123n"` vs `"S:123n"` (string) vs `123n` (BigInt)
+- **Cross-configuration:** Different client/server settings work seamlessly
+- **Compact:** Short prefixes (`S:`, `D:`) minimize payload overhead
+- **Automatic:** No manual intervention required, handled by headers
+- **Backward compatible:** Can be disabled if needed
+
+### Disabling Serialization Warnings
+
+When safe options are disabled (`safeStringEnabled: false` or `safeDateEnabled: false`), the toolkit warns about potential data type confusion. You can disable these warnings to reduce console noise:
+
+```javascript
+// Disable all serialization warnings
+const rpc = new RpcEndpoint(app, context, {
+    safeStringEnabled: false,      // Disable safe strings
+    safeDateEnabled: false,        // Disable safe dates
+    warnOnUnsafeString: false,     // Disable BigInt warnings
+    warnOnUnsafeDate: false        // Disable Date warnings
+});
+
+// Disable only specific warnings
+const rpc = new RpcEndpoint(app, context, {
+    safeStringEnabled: false,      // Still disabled
+    safeDateEnabled: false,        // Still disabled  
+    warnOnUnsafeString: false,     // No BigInt warnings
+    warnOnUnsafeDate: true         // Keep Date warnings
+});
+
+// Client also supports warning options
+const client = new RpcClient('http://localhost:3000/api', {
+    safeStringEnabled: false,
+    warnOnUnsafeString: false      // Disable client-side warnings
+});
+```
+
+**Warning types:**
+- `warnOnUnsafeString`: Warns when BigInt values are serialized without `safeStringEnabled`
+- `warnOnUnsafeDate`: Warns when Date values are serialized without `safeDateEnabled`
+
+**Use cases for disabling warnings:**
+- Production environments where warnings would clutter logs
+- Legacy applications that intentionally use unsafe serialization
+- Bulk data processing where performance is critical
 
 ### Error Handling
 

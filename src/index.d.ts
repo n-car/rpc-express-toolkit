@@ -3,7 +3,7 @@
 import type { Router, Request, Response } from 'express';
 
 /**
- * Definiamo il tipo della funzione "handler" che aggiungiamo tramite `addMethod`.
+ * JSON-RPC handler function type
  */
 type JSONRPCHandler<C> = (
   req: Request,
@@ -11,12 +11,26 @@ type JSONRPCHandler<C> = (
   params: any
 ) => any | Promise<any>;
 
+/**
+ * Method configuration object
+ */
+interface MethodConfig<C> {
+  handler: JSONRPCHandler<C>;
+  schema?: object;
+}
+
+/**
+ * JSON-RPC error object
+ */
 interface JSONRPCError {
   code: number;
   message: string;
   data?: any;
 }
 
+/**
+ * JSON-RPC response payload
+ */
 interface JSONRPCResponsePayload {
   id?: string | number | null;
   result?: any;
@@ -24,18 +38,112 @@ interface JSONRPCResponsePayload {
 }
 
 /**
- * The main RpcEndpoint class for JSON-RPC 2.0 endpoints.
- * The generics `<C>` represents the "context" type.
+ * Logging configuration
  */
-declare class RpcEndpoint<C> {
+interface LoggingConfig {
+  level?: 'trace' | 'debug' | 'info' | 'warn' | 'error';
+  format?: 'json' | 'simple';
+  transports?: Array<'console' | 'file'>;
+  file?: {
+    filename?: string;
+    maxsize?: number;
+    maxFiles?: number;
+  };
+}
+
+/**
+ * CORS configuration
+ */
+interface CorsConfig {
+  origin?: string | string[] | boolean;
+  credentials?: boolean;
+  methods?: string[];
+  allowedHeaders?: string[];
+}
+
+/**
+ * Rate limiting configuration
+ */
+interface RateLimitConfig {
+  windowMs?: number;
+  max?: number;
+  message?: string;
+  standardHeaders?: boolean;
+  legacyHeaders?: boolean;
+}
+
+/**
+ * Authentication configuration
+ */
+interface AuthConfig {
+  required?: boolean;
+  verify?: (req: Request) => boolean | Promise<boolean>;
+}
+
+/**
+ * Schema validation configuration
+ */
+interface ValidationConfig {
+  strict?: boolean;
+  coerceTypes?: boolean;
+  removeAdditional?: boolean;
+}
+
+/**
+ * RPC endpoint configuration options
+ */
+interface RpcEndpointOptions {
+  prefix?: string;
+  maxBodySize?: string;
+  timeout?: number;
+  cors?: boolean | CorsOptions;
+  auth?: AuthConfig;
+  validation?: ValidationConfig;
+  safeStringEnabled?: boolean;
+  safeDateEnabled?: boolean;
+  crossConfigurationEnabled?: boolean;
+  enableSchema?: boolean;
+  rateLimit?: RateLimitConfig;
+  logging?: LoggingConfig;
+  warnOnUnsafeString?: boolean;
+  warnOnUnsafeDate?: boolean;
+  autoJsonMiddleware?: boolean;
+  jsonOptions?: {
+    limit?: string;
+    strict?: boolean;
+    type?: string | string[] | ((req: any) => boolean);
+    verify?: (req: any, res: any, buf: Buffer, encoding: string) => void;
+  };
+}
+
+/**
+ * RPC client configuration options
+ */
+interface RpcClientOptions {
+  safeStringEnabled?: boolean;
+  safeDateEnabled?: boolean;
+  warnOnUnsafeString?: boolean;
+  warnOnUnsafeDate?: boolean;
+}
+
+/**
+ * Deserialization options for safe prefixes
+ */
+interface DeserializationOptions {
+  safeStringEnabled?: boolean;
+  safeDateEnabled?: boolean;
+}
+
+/**
+ * The main RpcEndpoint class for JSON-RPC 2.0 endpoints.
+ */
+declare class RpcEndpoint<C = any> {
   /**
    * Constructor.
-   *
-   * @param router   - An Express.Router object
-   * @param context  - Generic object that will be passed to method handlers
-   * @param endpoint - Path on which to respond to JSON-RPC calls (default: "/api")
    */
   constructor(router: Router, context: C, endpoint?: string);
+  constructor(router: Router, context: C, options?: RpcEndpointOptions);
+  constructor(router: Router, context: C, endpoint?: string, options?: RpcEndpointOptions);
 
   /**
    * Returns the endpoint path, e.g. "/api".
@@ -45,25 +153,57 @@ declare class RpcEndpoint<C> {
   /**
    * Returns the map of all registered methods.
    */
-  get methods(): { [methodName: string]: JSONRPCHandler<C> };
+  get methods(): { [methodName: string]: JSONRPCHandler<C> | MethodConfig<C> };
 
   /**
-   * Adds a JSON-RPC method (e.g. "getUserData").
-   * 
-   * @param name    - Method name
+   * Get logger instance
+   */
+  get logger(): any;
+
   /**
-   * Adds a JSON-RPC method (e.g. "getUserData").
-   * 
-   * @param name    - Method name
-   * @param handler - Handler function that receives (req, context, params)
+   * Get middleware manager
+   */
+  get middleware(): any;
+
+  /**
+   * Get validator instance
+   */
+  get validator(): any;
+
+  /**
+   * Add a JSON-RPC method with optional schema validation.
    */
   addMethod(name: string, handler: JSONRPCHandler<C>): void;
+  addMethod(name: string, handler: JSONRPCHandler<C>, schema: object): void;
+  addMethod(name: string, config: MethodConfig<C>): void;
+
+  /**
+   * Add middleware for specific hooks
+   */
+  use(hook: 'beforeCall' | 'afterCall' | 'onError' | 'beforeValidation' | 'afterValidation', middleware: Function): void;
+
+  /**
+   * Remove a method
+   */
+  removeMethod(name: string): void;
+
+  /**
+   * Get method configuration
+   */
+  getMethod(name: string): JSONRPCHandler<C> | MethodConfig<C> | undefined;
+
+  /**
+   * List all registered methods
+   */
+  listMethods(): string[];
+
+  /**
+   * Get metrics data
+   */
+  getMetrics(): object;
 
   /**
    * Serve client scripts (for calling JSON-RPC from browser).
-   *
-   * @param router - An Express.Router object
-   * @param url    - Path from which to serve scripts (default: "/vendor/rpc-client")
    */
   static serveScripts(router: Router, url?: string): void;
 
@@ -78,43 +218,23 @@ declare class RpcEndpoint<C> {
   serializeBigIntsAndDates(value: any): any;
 
   /**
-   * Recursively deserialize strings representing BigInt and Date
-   * (produced by `serializeBigIntsAndDates`) to reconstruct original types.
+   * Recursively deserialize strings representing BigInt and Date.
    */
-  deserializeBigIntsAndDates(value: any): any;
+  deserializeBigIntsAndDates(value: any, options?: DeserializationOptions): any;
 }
 
 /**
  * JSON-RPC 2.0 Client for Node.js environments.
- * Handles BigInt and Date serialization/deserialization automatically.
  */
 declare class RpcClient {
   /**
    * Client constructor.
-   *
-   * @param endpoint - JSON-RPC endpoint URL
-   * @param defaultHeaders - Default headers to include in requests
-   * @param options - Configuration options
-   * @param options.rejectUnauthorized - Whether to reject unauthorized SSL certificates (default: true). Set to false for development with self-signed certificates.
-   * @param options.ca - Buffer or string of a custom CA certificate to trust (for self-signed CA)
-   * @param options.agent - Custom https.Agent instance (advanced usage)
    */
-  constructor(
-    endpoint: string,
-    defaultHeaders?: Record<string, string>,
-    options?: {
-      // Opzioni SSL avanzate rimosse: usa process.env.NODE_TLS_REJECT_UNAUTHORIZED per sviluppo
-    }
-  );
+  constructor(endpoint: string, options?: RpcClientOptions);
+  constructor(endpoint: string, defaultHeaders?: Record<string, string>, options?: RpcClientOptions);
 
   /**
    * Make a JSON-RPC call to the server.
-   *
-   * @param method - RPC method name
-   * @param params - Parameters to pass to the method
-   * @param id - Request ID (optional for notifications)
-   * @param overrideHeaders - Headers to override defaults for this request
-   * @returns Promise with the RPC call result
    */
   call(
     method: string,
@@ -125,10 +245,6 @@ declare class RpcClient {
 
   /**
    * Make a JSON-RPC notification (no response expected).
-   *
-   * @param method - RPC method name
-   * @param params - Parameters to pass to the method
-   * @param overrideHeaders - Headers to override defaults for this request
    */
   notify(
     method: string,
@@ -138,10 +254,6 @@ declare class RpcClient {
 
   /**
    * Make a batch JSON-RPC call.
-   *
-   * @param requests - Array of request objects
-   * @param overrideHeaders - Headers to override defaults for this request
-   * @returns Promise with array of results
    */
   batch(
     requests: Array<{
@@ -161,18 +273,47 @@ declare class RpcClient {
   /**
    * Recursively deserialize strings representing BigInt and Date.
    */
-  deserializeBigIntsAndDates(value: any): any;
+  deserializeBigIntsAndDates(value: any, options?: DeserializationOptions): any;
 }
 
 /**
- * Main export structure.
+ * Export types for external use
+ */
+export {
+  JSONRPCHandler,
+  MethodConfig,
+  JSONRPCError,
+  JSONRPCResponsePayload,
+  LoggingConfig,
+  CorsConfig,
+  RateLimitConfig,
+  AuthConfig,
+  ValidationConfig,
+  RpcEndpointOptions,
+  RpcClientOptions,
+  DeserializationOptions,
+  RpcEndpoint,
+  RpcClient
+};
+
+/**
+ * Main export - RpcEndpoint class with static properties
  */
 declare const Main: {
   new <C>(router: Router, context: C, endpoint?: string): RpcEndpoint<C>;
+  new <C>(router: Router, context: C, options?: RpcEndpointOptions): RpcEndpoint<C>;
+  new <C>(router: Router, context: C, endpoint?: string, options?: RpcEndpointOptions): RpcEndpoint<C>;
   prototype: RpcEndpoint<any>;
   serveScripts(router: Router, url?: string): void;
   RpcEndpoint: typeof RpcEndpoint;
   RpcClient: typeof RpcClient;
+  Logger: any;
+  MiddlewareManager: any;
+  builtInMiddlewares: any;
+  SchemaValidator: any;
+  commonSchemas: any;
+  SchemaBuilder: any;
+  BatchHandler: any;
 };
 
 export = Main;

@@ -15,7 +15,11 @@ describe('RpcEndpoint', () => {
     app.use(express.json());
     
     const context = { user: 'test-user' };
-    rpc = new RpcEndpoint(app, context);
+    // Disable safe options for backward compatibility in tests
+    rpc = new RpcEndpoint(app, context, {
+      safeStringEnabled: false,
+      safeDateEnabled: false
+    });
   });
 
   afterEach(() => {
@@ -179,10 +183,15 @@ describe('RpcEndpoint', () => {
   describe('serializeBigIntsAndDates', () => {
     it('should serialize BigInt to string', () => {
       const result = rpc.serializeBigIntsAndDates(123n);
-      expect(result).toBe('123');
+      expect(result).toBe('123n');
     });
 
-    it('should serialize Date to ISO string', () => {
+    it('should serialize strings without prefix when safeStringEnabled is false', () => {
+      const result = rpc.serializeBigIntsAndDates('test string');
+      expect(result).toBe('test string');
+    });
+
+    it('should serialize Date to ISO string without prefix when safeDateEnabled is false', () => {
       const date = new Date('2023-01-01T00:00:00.000Z');
       const result = rpc.serializeBigIntsAndDates(date);
       expect(result).toBe('2023-01-01T00:00:00.000Z');
@@ -198,10 +207,10 @@ describe('RpcEndpoint', () => {
       };
       const result = rpc.serializeBigIntsAndDates(obj);
       expect(result).toEqual({
-        bigint: '456',
+        bigint: '456n',
         date: '2023-01-01T00:00:00.000Z',
         nested: {
-          bigint: '789',
+          bigint: '789n',
         },
       });
     });
@@ -209,21 +218,21 @@ describe('RpcEndpoint', () => {
 
   describe('deserializeBigIntsAndDates', () => {
     it('should deserialize string to BigInt', () => {
-      const result = rpc.deserializeBigIntsAndDates('123');
+      const result = rpc.deserializeBigIntsAndDates('123n');
       expect(result).toBe(123n);
     });
 
-    it('should deserialize ISO string to Date', () => {
+    it('should deserialize string without prefix when safeStringEnabled is false', () => {
       const result = rpc.deserializeBigIntsAndDates('2023-01-01T00:00:00.000Z');
       expect(result).toEqual(new Date('2023-01-01T00:00:00.000Z'));
     });
 
     it('should deserialize nested objects', () => {
       const obj = {
-        bigint: '456',
+        bigint: '456n',
         date: '2023-01-01T00:00:00.000Z',
         nested: {
-          bigint: '789',
+          bigint: '789n',
         },
       };
       const result = rpc.deserializeBigIntsAndDates(obj);
@@ -249,7 +258,11 @@ describe('RpcEndpoint', () => {
       app.use(express.json());
       
       const context = { testData: new Map() };
-      rpc = new RpcEndpoint(app, context);
+      // Disable safe options for backward compatibility in tests
+      rpc = new RpcEndpoint(app, context, {
+        safeStringEnabled: false,
+        safeDateEnabled: false
+      });
       
       rpc.addMethod('echo', (req, ctx, params) => params);
       rpc.addMethod('add', (req, ctx, params) => params.a + params.b);
@@ -262,15 +275,26 @@ describe('RpcEndpoint', () => {
         if (value === undefined) throw new Error('Key not found');
         return { key: params.key, value };
       });
-      rpc.addMethod('testBigInt', (req, ctx, params) => ({
-        bigint: BigInt(params.number),
-        date: new Date('2023-01-01T00:00:00.000Z')
-      }));
+      rpc.addMethod('testBigInt', (req, ctx, params) => {
+        let number = params.number;
+        if (typeof number === 'string' && number.endsWith('n')) {
+          number = BigInt(number.slice(0, -1));
+        } else if (typeof number === 'string') {
+          number = BigInt(number);
+        }
+        return {
+          bigint: number,
+          date: new Date('2023-01-01T00:00:00.000Z')
+        };
+      });
       
       server = app.listen(0, () => {
         const port = server.address().port;
         serverUrl = `http://localhost:${port}/api`;
-        client = new RpcClient(serverUrl);
+        client = new RpcClient(serverUrl, {}, {
+          safeStringEnabled: false,
+          safeDateEnabled: false
+        });
         done();
       });
     });
@@ -299,7 +323,7 @@ describe('RpcEndpoint', () => {
 
     describe('BigInt and Date handling', () => {
       it('should serialize and deserialize BigInt correctly', async () => {
-        const result = await client.call('testBigInt', { number: '123456789012345678901234567890' });
+        const result = await client.call('testBigInt', { number: '123456789012345678901234567890n' });
         expect(typeof result.bigint).toBe('bigint');
         expect(result.bigint.toString()).toBe('123456789012345678901234567890');
       });
@@ -313,12 +337,20 @@ describe('RpcEndpoint', () => {
 
     describe('enhanced BigInt and Date handling', () => {
       it('should handle negative BigInt correctly', async () => {
-        rpc.addMethod('testNegativeBigInt', (req, ctx, params) => ({
-          negative: BigInt(-params.number),
-          positive: BigInt(params.number)
-        }));
+        rpc.addMethod('testNegativeBigInt', (req, ctx, params) => {
+          let number = params.number;
+          if (typeof number === 'string' && number.endsWith('n')) {
+            number = BigInt(number.slice(0, -1));
+          } else if (typeof number === 'string') {
+            number = BigInt(number);
+          }
+          return {
+            negative: -number,
+            positive: number
+          };
+        });
 
-        const result = await client.call('testNegativeBigInt', { number: '123456789012345678901234567890' });
+        const result = await client.call('testNegativeBigInt', { number: '123456789012345678901234567890n' });
         expect(typeof result.negative).toBe('bigint');
         expect(typeof result.positive).toBe('bigint');
         expect(result.negative < 0n).toBe(true);
@@ -341,22 +373,39 @@ describe('RpcEndpoint', () => {
       });
 
       it('should handle mixed BigInt and Date in complex objects', async () => {
-        rpc.addMethod('testComplexObject', (req, ctx, params) => ({
-          data: {
-            id: BigInt(params.id),
-            balance: BigInt(-params.balance),
-            created: new Date('2023-01-01T12:00:00.000Z'),
-            updated: new Date('2023-01-01T12:00:00.000+01:00'),
-            tags: [
-              { name: 'tag1', count: BigInt(10) },
-              { name: 'tag2', count: BigInt(-5) }
-            ]
+        rpc.addMethod('testComplexObject', (req, ctx, params) => {
+          let id = params.id;
+          let balance = params.balance;
+          
+          if (typeof id === 'string' && id.endsWith('n')) {
+            id = BigInt(id.slice(0, -1));
+          } else if (typeof id === 'string') {
+            id = BigInt(id);
           }
-        }));
+          
+          if (typeof balance === 'string' && balance.endsWith('n')) {
+            balance = BigInt(balance.slice(0, -1));
+          } else if (typeof balance === 'string') {
+            balance = BigInt(balance);
+          }
+          
+          return {
+            data: {
+              id: id,
+              balance: -balance,
+              created: new Date('2023-01-01T12:00:00.000Z'),
+              updated: new Date('2023-01-01T12:00:00.000+01:00'),
+              tags: [
+                { name: 'tag1', count: BigInt(10) },
+                { name: 'tag2', count: BigInt(-5) }
+              ]
+            }
+          };
+        });
 
         const result = await client.call('testComplexObject', { 
-          id: '999999999999999999999999999999',
-          balance: '123456789012345678901234567890'
+          id: '999999999999999999999999999999n',
+          balance: '123456789012345678901234567890n'
         });
         
         expect(typeof result.data.id).toBe('bigint');
@@ -394,6 +443,9 @@ describe('RpcEndpoint', () => {
       it('should allow custom headers', async () => {
         const customClient = new RpcClient(serverUrl, { 
           'X-Custom-Header': 'test-value' 
+        }, {
+          safeStringEnabled: false,
+          safeDateEnabled: false
         });
         const result = await customClient.call('echo', { message: 'with headers' });
         expect(result).toEqual({ message: 'with headers' });
