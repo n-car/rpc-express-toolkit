@@ -82,11 +82,12 @@ class RpcClient {
 
   /**
    * Make a JSON-RPC call to the server.
+   * @template T
    * @param {string} method The RPC method name.
    * @param {any} params The parameters to pass to the RPC method.
    * @param {string|number|null} [id] The request ID (auto-generated if not provided).
    * @param {Object} [overrideHeaders={}] Optional headers to override defaults for this request.
-   * @returns {Promise<any>} The result of the RPC call.
+   * @returns {Promise<T>} The result of the RPC call.
    */
   async call(method, params, id = undefined, overrideHeaders = {}) {
     // Auto-generate ID if not provided (null means notification)
@@ -162,9 +163,10 @@ class RpcClient {
 
   /**
    * Make multiple JSON-RPC calls in a single batch request.
+   * @template T
    * @param {Array<{method: string, params?: any, id?: string|number}>} requests Array of request objects.
    * @param {Object} [overrideHeaders={}] Optional headers to override defaults for this request.
-   * @returns {Promise<Array<any>>} Array of results in the same order as requests.
+   * @returns {Promise<Array<T>>} Array of results in the same order as requests.
    */
   async batch(requests, overrideHeaders = {}) {
     const batchRequests = requests.map((req) => {
