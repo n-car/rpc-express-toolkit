@@ -99,14 +99,13 @@ interface RpcEndpointOptions {
   cors?: boolean | CorsOptions;
   auth?: AuthConfig;
   validation?: ValidationConfig;
-  safeStringEnabled?: boolean;
-  safeDateEnabled?: boolean;
+  safeEnabled?: boolean;
   crossConfigurationEnabled?: boolean;
   enableSchema?: boolean;
   rateLimit?: RateLimitConfig;
   logging?: LoggingConfig;
-  warnOnUnsafeString?: boolean;
-  warnOnUnsafeDate?: boolean;
+  warnOnUnsafe?: boolean;
+  strictMode?: boolean;
   autoJsonMiddleware?: boolean;
   jsonOptions?: {
     limit?: string;
@@ -120,18 +119,15 @@ interface RpcEndpointOptions {
  * RPC client configuration options
  */
 interface RpcClientOptions {
-  safeStringEnabled?: boolean;
-  safeDateEnabled?: boolean;
-  warnOnUnsafeString?: boolean;
-  warnOnUnsafeDate?: boolean;
+  safeEnabled?: boolean;
+  warnOnUnsafe?: boolean;
 }
 
 /**
  * Deserialization options for safe prefixes
  */
 interface DeserializationOptions {
-  safeStringEnabled?: boolean;
-  safeDateEnabled?: boolean;
+  safeEnabled?: boolean;
 }
 
 /**
@@ -236,12 +232,12 @@ declare class RpcClient {
   /**
    * Make a JSON-RPC call to the server.
    */
-  call(
+  call<T = any>(
     method: string,
     params?: any,
     id?: string | number | null,
     overrideHeaders?: Record<string, string>
-  ): Promise<any>;
+  ): Promise<T>;
 
   /**
    * Make a JSON-RPC notification (no response expected).
@@ -255,7 +251,7 @@ declare class RpcClient {
   /**
    * Make a batch JSON-RPC call.
    */
-  batch(
+  batch<T = any>(
     requests: Array<{
       method: string;
       params?: any;
@@ -263,7 +259,7 @@ declare class RpcClient {
       notification?: boolean;
     }>,
     overrideHeaders?: Record<string, string>
-  ): Promise<any[]>;
+  ): Promise<T[]>;
 
   /**
    * Recursively serialize BigInt and Date to JSON-safe string formats.

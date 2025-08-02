@@ -15,10 +15,9 @@ describe('RpcEndpoint', () => {
     app.use(express.json());
     
     const context = { user: 'test-user' };
-    // Disable safe options for backward compatibility in tests
+    // Disable safe options for backward compatibility in tests  
     rpc = new RpcEndpoint(app, context, {
-      safeStringEnabled: false,
-      safeDateEnabled: false
+      safeEnabled: false
     });
   });
 
@@ -186,12 +185,12 @@ describe('RpcEndpoint', () => {
       expect(result).toBe('123n');
     });
 
-    it('should serialize strings without prefix when safeStringEnabled is false', () => {
+    it('should serialize strings without prefix when safeEnabled is false', () => {
       const result = rpc.serializeBigIntsAndDates('test string');
       expect(result).toBe('test string');
     });
 
-    it('should serialize Date to ISO string without prefix when safeDateEnabled is false', () => {
+    it('should serialize Date to ISO string without prefix when safeEnabled is false', () => {
       const date = new Date('2023-01-01T00:00:00.000Z');
       const result = rpc.serializeBigIntsAndDates(date);
       expect(result).toBe('2023-01-01T00:00:00.000Z');
@@ -222,7 +221,7 @@ describe('RpcEndpoint', () => {
       expect(result).toBe(123n);
     });
 
-    it('should deserialize string without prefix when safeStringEnabled is false', () => {
+    it('should deserialize string without prefix when safeEnabled is false', () => {
       const result = rpc.deserializeBigIntsAndDates('2023-01-01T00:00:00.000Z');
       expect(result).toEqual(new Date('2023-01-01T00:00:00.000Z'));
     });
@@ -260,8 +259,7 @@ describe('RpcEndpoint', () => {
       const context = { testData: new Map() };
       // Disable safe options for backward compatibility in tests
       rpc = new RpcEndpoint(app, context, {
-        safeStringEnabled: false,
-        safeDateEnabled: false
+        safeEnabled: false
       });
       
       rpc.addMethod('echo', (req, ctx, params) => params);
@@ -292,8 +290,7 @@ describe('RpcEndpoint', () => {
         const port = server.address().port;
         serverUrl = `http://localhost:${port}/api`;
         client = new RpcClient(serverUrl, {}, {
-          safeStringEnabled: false,
-          safeDateEnabled: false
+          safeEnabled: false
         });
         done();
       });
@@ -444,8 +441,7 @@ describe('RpcEndpoint', () => {
         const customClient = new RpcClient(serverUrl, { 
           'X-Custom-Header': 'test-value' 
         }, {
-          safeStringEnabled: false,
-          safeDateEnabled: false
+          safeEnabled: false
         });
         const result = await customClient.call('echo', { message: 'with headers' });
         expect(result).toEqual({ message: 'with headers' });

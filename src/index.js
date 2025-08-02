@@ -138,10 +138,9 @@ class RpcEndpoint {
     this.#batchHandler = new BatchHandler(this);
 
     // Set default options
-    this.#options.safeStringEnabled = this.#options.safeStringEnabled !== false; // Default true
-    this.#options.safeDateEnabled = this.#options.safeDateEnabled !== false; // Default true
-    this.#options.warnOnUnsafeString = this.#options.warnOnUnsafeString !== false; // Default true
-    this.#options.warnOnUnsafeDate = this.#options.warnOnUnsafeDate !== false; // Default true
+    this.#options.safeEnabled = this.#options.safeEnabled === true; // Default false
+    this.#options.warnOnUnsafe = this.#options.warnOnUnsafe !== false; // Default true
+    this.#options.strictMode = this.#options.strictMode !== false; // Default true
 
     // Validate that the router can handle JSON parsing
     this.#validateJsonMiddleware();
@@ -359,13 +358,29 @@ class RpcEndpoint {
 
     try {
       // Check client's safe options from request headers
-      const clientSafeStringEnabled = req.headers['x-rpc-safestring-enabled'] === 'true';
-      const clientSafeDateEnabled = req.headers['x-rpc-safedate-enabled'] === 'true';
+      const clientSafeHeader = req.headers['x-rpc-safe-enabled'];
 
-      // Create deserialization options based on client's configuration
+      // Strict mode: se server ha safe enabled ma client non invia header → JSON-RPC ERROR
+      if (this.#options.strictMode && this.#options.safeEnabled && !clientSafeHeader) {
+        return this.reply(res, {
+          id,
+          error: {
+            code: -32600, // Invalid Request
+            message: 'RPC Compatibility Error: Server requires safe serialization header but client did not provide it.',
+            data: {
+              serverSafeEnabled: this.#options.safeEnabled,
+              requiredHeader: 'X-RPC-Safe-Enabled',
+              strictMode: true,
+              solution: 'Update client to rpc-express-toolkit v4+ or disable server strict mode'
+            }
+          }
+        });
+      }
+
+      // Use client's safe options for parameter deserialization
+      const clientSafeEnabled = clientSafeHeader === 'true';
       const deserializationOptions = {
-        safeStringEnabled: clientSafeStringEnabled,
-        safeDateEnabled: clientSafeDateEnabled
+        safeEnabled: clientSafeEnabled
       };
 
       // Deserialize parameters using client's safe options
@@ -602,8 +617,8 @@ class RpcEndpoint {
     }
 
     // Add safe options headers so client knows how to deserialize
-    res.setHeader('X-RPC-SafeString-Enabled', this.#options.safeStringEnabled ? 'true' : 'false');
-    res.setHeader('X-RPC-SafeDate-Enabled', this.#options.safeDateEnabled ? 'true' : 'false');
+    // Send safe options headers to client
+    res.setHeader('X-RPC-Safe-Enabled', this.#options.safeEnabled ? 'true' : 'false');
 
     res.json(response);
   }
@@ -626,23 +641,23 @@ class RpcEndpoint {
    */
   #serializeValue(value, hasBigInt = false, hasDate = false) {
     if (typeof value === 'bigint') {
-      // Warn if safeStringEnabled is disabled and we have BigInt
-      if (!this.#options.safeStringEnabled && !hasBigInt && this.#options.warnOnUnsafeString) {
-        this.#logger.warn('BigInt detected in serialization. Consider enabling safeStringEnabled option to avoid potential string/BigInt confusion.');
+      // Warn if safeEnabled is disabled and we have BigInt
+      if (!this.#options.safeEnabled && !hasBigInt && this.#options.warnOnUnsafe) {
+        this.#logger.warn('BigInt detected in serialization. Consider enabling safeEnabled option to avoid potential string/BigInt confusion.');
       }
       // Convert BigInt to string with 'n' suffix for proper deserialization
       return value.toString() + 'n';
     } else if (value instanceof Date) {
-      // Warn if safeDateEnabled is disabled and we have Date
-      if (!this.#options.safeDateEnabled && !hasDate && this.#options.warnOnUnsafeDate) {
-        this.#logger.warn('Date detected in serialization. Consider enabling safeDateEnabled option to avoid potential string/Date confusion.');
+      // Warn if safeEnabled is disabled and we have Date
+      if (!this.#options.safeEnabled && !hasDate && this.#options.warnOnUnsafe) {
+        this.#logger.warn('Date detected in serialization. Consider enabling safeEnabled option to avoid potential string/Date confusion.');
       }
-      // Convert Date to ISO string with D: prefix if safeDateEnabled
+      // Convert Date to ISO string with D: prefix if safeEnabled
       const isoString = value.toISOString();
-      return this.#options.safeDateEnabled ? `D:${isoString}` : isoString;
+      return this.#options.safeEnabled ? `D:${isoString}` : isoString;
     } else if (typeof value === 'string') {
-      // Add S: prefix if safeStringEnabled is true
-      if (this.#options.safeStringEnabled) {
+      // Add S: prefix if safeEnabled is true
+      if (this.#options.safeEnabled) {
         return 'S:' + value;
       }
       return value;
@@ -700,14 +715,12 @@ class RpcEndpoint {
    *
    * @param {any} value The value to deserialize.
    * @param {Object} [options] Custom deserialization options (uses server options if not provided).
-   * @param {boolean} [options.safeStringEnabled] Whether to expect S: prefixed strings.
-   * @param {boolean} [options.safeDateEnabled] Whether to expect D: prefixed dates.
+   * @param {boolean} [options.safeEnabled] Whether to expect safe prefixes for strings and dates.
    * @returns {any} The re-hydrated value.
    */
   deserializeBigIntsAndDates(value, options = null) {
     // Use provided options or fall back to server options
-    const safeStringEnabled = options ? options.safeStringEnabled : this.#options.safeStringEnabled;
-    const safeDateEnabled = options ? options.safeDateEnabled : this.#options.safeDateEnabled;
+    const safeEnabled = options ? options.safeEnabled : this.#options.safeEnabled;
 
     // More comprehensive ISO date regex that handles:
     // - UTC: 2023-01-01T12:00:00.000Z
@@ -718,13 +731,13 @@ class RpcEndpoint {
 
     // 1. Check if it's a string that might be a BigInt, Date, or safe string
     if (typeof value === 'string') {
-      // Safe string check: if safeStringEnabled and starts with S:
-      if (safeStringEnabled && value.startsWith('S:')) {
+      // Safe string check: if safeEnabled and starts with S:
+      if (safeEnabled && value.startsWith('S:')) {
         return value.substring(2); // Remove 'S:' prefix
       }
 
-      // Safe date check: if safeDateEnabled and starts with D:
-      if (safeDateEnabled && value.startsWith('D:')) {
+      // Safe date check: if safeEnabled and starts with D:
+      if (safeEnabled && value.startsWith('D:')) {
         const isoString = value.substring(2); // Remove 'D:' prefix
         const date = new Date(isoString);
         // Double-check that we got a valid date
@@ -738,8 +751,8 @@ class RpcEndpoint {
         return BigInt(value.slice(0, -1)); // Remove 'n' and convert
       }
 
-      // Date check: matches an ISO 8601 string (only if safeDateEnabled is false)
-      if (!safeDateEnabled && ISO_DATE_REGEX.test(value)) {
+      // Date check: matches an ISO 8601 string (only if safeEnabled is false)
+      if (!safeEnabled && ISO_DATE_REGEX.test(value)) {
         const date = new Date(value);
         // Double-check that we got a valid date
         if (!isNaN(date.getTime())) {

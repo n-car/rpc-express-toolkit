@@ -13,8 +13,7 @@ describe('String Coercion Tests', () => {
     const context = {};
     // Disable safe options for backward compatibility in tests
     rpc = new RpcEndpoint(app, context, {
-      safeStringEnabled: false,
-      safeDateEnabled: false
+      safeEnabled: false
     });
   });
 
@@ -82,8 +81,7 @@ describe('String Coercion Tests', () => {
       validation: {
         coerceTypes: true
       },
-      safeStringEnabled: false,
-      safeDateEnabled: false
+      safeEnabled: false
     });
 
     rpcWithCoercion.addMethod('coerceToNumber', {
@@ -126,8 +124,7 @@ describe('String Coercion Tests', () => {
       validation: {
         coerceTypes: false
       },
-      safeStringEnabled: false,
-      safeDateEnabled: false
+      safeEnabled: false
     });
 
     rpcNoCoercion.addMethod('strictString', {
@@ -169,8 +166,7 @@ describe('String Coercion Tests', () => {
       validation: {
         coerceTypes: false
       },
-      safeStringEnabled: false,
-      safeDateEnabled: false
+      safeEnabled: false
     });
 
     rpcNoCoercion.addMethod('strictNumber', {
