@@ -5,6 +5,8 @@
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![npm version](https://img.shields.io/npm/v/rpc-express-toolkit.svg)](https://www.npmjs.com/package/rpc-express-toolkit)
 [![npm downloads](https://img.shields.io/npm/dm/rpc-express-toolkit.svg)](https://www.npmjs.com/package/rpc-express-toolkit)
+[![node](https://img.shields.io/node/v/rpc-express-toolkit.svg)](https://www.npmjs.com/package/rpc-express-toolkit)
+[![safe preset](https://img.shields.io/badge/safe%20preset-available-blue)](#safe-import-opt-in)
 
 Enterprise-ready JSON-RPC 2.0 toolkit for Express.js with simplified APIs, middleware, schema validation, batch support, and optional safe type disambiguation.
 
