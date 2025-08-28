@@ -1,5 +1,6 @@
 # RPC Express Toolkit
 
+[![CI](https://github.com/n-car/rpc-express-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/n-car/rpc-express-toolkit/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![npm version](https://img.shields.io/npm/v/rpc-express-toolkit.svg)](https://www.npmjs.com/package/rpc-express-toolkit)
 
