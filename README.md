@@ -6,7 +6,6 @@
 [![npm version](https://img.shields.io/npm/v/rpc-express-toolkit.svg)](https://www.npmjs.com/package/rpc-express-toolkit)
 [![npm downloads](https://img.shields.io/npm/dm/rpc-express-toolkit.svg)](https://www.npmjs.com/package/rpc-express-toolkit)
 [![node](https://img.shields.io/node/v/rpc-express-toolkit.svg)](https://www.npmjs.com/package/rpc-express-toolkit)
-[![safe preset](https://img.shields.io/badge/safe%20preset-available-blue)](#safe-import-opt-in)
 
 Enterprise-ready JSON-RPC 2.0 toolkit for Express.js with simplified APIs, middleware, schema validation, batch support, and optional safe type disambiguation.
 
@@ -62,6 +61,9 @@ Safe type disambiguation is disabled by default for maximum JSON-RPC 2.0 compati
 - `client.notify(method, params?)`: notification.
 
 ### Safe Import (opt-in)
+
+[![npm (proxy)](https://img.shields.io/npm/v/rpc-express-toolkit-safe.svg)](https://www.npmjs.com/package/rpc-express-toolkit-safe)
+[![safe preset](https://img.shields.io/badge/safe%20preset-available-blue)](#safe-import-opt-in)
 
 When you control both client and server and want safer type round-trips, import the safe preset. It enables safe serialization by default (and strict mode on the server):
 
