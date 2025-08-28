@@ -19,8 +19,8 @@
     "clean": "node -e \"require('fs').existsSync('dist') && require('fs').rmSync('dist', {recursive: true})\"",
     "build": "npm run build:minify",
     "build:minify": "npm run build:js && npm run build:mjs",
-    "build:js": "terser src/clients/rpc-client.js -o src/clients/rpc-client.min.js --compress --mangle --comments false",
-    "build:mjs": "terser src/clients/rpc-client.mjs -o src/clients/rpc-client.min.mjs --compress --mangle --comments false --module",
+    "build:js": "terser src/clients/rpc-client.js -o src/clients/rpc-client.min.js --compress --mangle --comments false --ecma 2020",
+    "build:mjs": "terser src/clients/rpc-client.mjs -o src/clients/rpc-client.min.mjs --compress --mangle --comments false --module --ecma 2020",
     "prepublishOnly": "npm run build",
     "precommit": "npm run lint && npm test"
   },
