@@ -86,7 +86,9 @@
     "express": "^4.21.2",
     "nested-error-stacks": "^2.1.1"
   },
-  "optionalDependencies": {},
+  "optionalDependencies": {
+    "node-fetch": "^2.7.0"
+  },
   "contributors": [
     {
       "name": "Nicola Carpanese",
