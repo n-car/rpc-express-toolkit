@@ -164,6 +164,26 @@ Options:
 
 See the `examples/` folder for runnable samples.
 
+### Safe Preset Entry Point
+
+If you prefer safe serialization by default (and you control both client and server), you can import the safe preset:
+
+```js
+// Server
+const express = require('express');
+const { createSafeEndpoint } = require('rpc-express-toolkit/safe');
+
+const app = express();
+app.use(express.json());
+const rpc = createSafeEndpoint(app, {}, { endpoint: '/api' }); // safeEnabled + strictMode by default
+
+// Client
+const { createSafeClient } = require('rpc-express-toolkit/safe');
+const client = createSafeClient('http://localhost:3000/api'); // safeEnabled by default
+```
+
+This is a thin convenience wrapper over the main API with `safeEnabled: true` (and `strictMode: true` on the server). It lets you keep the default entrypoint fully JSON‑RPC 2.0 compliant while offering a clear opt‑in for advanced type disambiguation.
+
 ### Contributing
 
 Issues and PRs are welcome. Run tests and lint before submitting.
@@ -182,4 +202,3 @@ npm run lint
 ## License
 
 MIT. See [LICENSE](LICENSE).
-
