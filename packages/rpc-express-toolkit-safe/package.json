@@ -1,29 +1,28 @@
 {
-  "name": "rpc-express-toolkit-safe",
-  "version": "4.0.1",
-  "description": "Safe preset wrapper for rpc-express-toolkit (safeEnabled defaults to true).",
-  "license": "MIT",
-  "main": "index.js",
-  "types": "index.d.ts",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/n-car/rpc-express-toolkit.git"
-  },
-  "keywords": [
-    "json-rpc",
-    "jsonrpc",
-    "express",
-    "rpc",
-    "safe",
-    "bigint",
-    "date",
-    "validation"
-  ],
-  "peerDependencies": {
-    "rpc-express-toolkit": ">=4.0.1"
-  },
-  "dependencies": {
-    "rpc-express-toolkit": ">=4.0.1"
-  }
+    "name":  "rpc-express-toolkit-safe",
+    "version":  "4.1.0",
+    "description":  "Safe preset wrapper for rpc-express-toolkit (safeEnabled defaults to true).",
+    "license":  "MIT",
+    "main":  "index.js",
+    "types":  "index.d.ts",
+    "repository":  {
+                       "type":  "git",
+                       "url":  "git+https://github.com/n-car/rpc-express-toolkit.git"
+                   },
+    "keywords":  [
+                     "json-rpc",
+                     "jsonrpc",
+                     "express",
+                     "rpc",
+                     "safe",
+                     "bigint",
+                     "date",
+                     "validation"
+                 ],
+    "peerDependencies":  {
+                             "rpc-express-toolkit":  "\u003e=4.1.0"
+                         },
+    "dependencies":  {
+                         "rpc-express-toolkit":  "\u003e=4.1.0"
+                     }
 }
-
