@@ -78,7 +78,8 @@ class MiddlewareManager {
 
     // Do not expose internal marker
     if (finalResult && finalResult.__middlewareStopped) {
-      const { __middlewareStopped, ...rest } = finalResult;
+      const rest = { ...finalResult };
+      delete rest.__middlewareStopped;
       return rest;
     }
     return finalResult;
