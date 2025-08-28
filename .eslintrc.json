@@ -37,6 +37,12 @@
         "no-unused-vars": "off",
         "no-plusplus": "off"
       }
+    },
+    {
+      "files": ["src/logger.js"],
+      "rules": {
+        "no-console": "off"
+      }
     }
   ]
 }
