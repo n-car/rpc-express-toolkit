@@ -1,11 +1,13 @@
 const path = require('path');
 const express = require('express');
+const expressPkg = require('express/package.json');
+const NestedError = require('nested-error-stacks');
+const pkg = require('../package.json');
 
 /** @typedef {import("express").Router} Router */
 /** @typedef {import("express").Request} Request */
 /** @typedef {import("express").Response} Response */
 
-const NestedError = require('nested-error-stacks');
 const Logger = require('./logger');
 const { MiddlewareManager, builtInMiddlewares } = require('./middleware');
 const {
@@ -190,41 +192,47 @@ class RpcEndpoint {
     try {
       // Check if express.json is available (Express 4.16.0+)
       if (typeof express.json !== 'function') {
-        throw new Error('express.json() is not available. Please ensure you are using Express 4.16.0 or later, or install body-parser separately.');
+        throw new Error(
+          'express.json() is not available. Please ensure you are using Express 4.16.0 or later, or install body-parser separately.'
+        );
       }
-      
+
       // Test JSON middleware creation with default options
       const jsonMiddleware = express.json({ limit: '10mb' });
-      
+
       if (typeof jsonMiddleware !== 'function') {
-        throw new Error('express.json() did not return a valid middleware function');
+        throw new Error(
+          'express.json() did not return a valid middleware function'
+        );
       }
-      
+
       // Verify middleware has correct signature (req, res, next)
       if (jsonMiddleware.length !== 3) {
-        throw new Error('JSON middleware has invalid signature - expected (req, res, next)');
+        throw new Error(
+          'JSON middleware has invalid signature - expected (req, res, next)'
+        );
       }
-      
+
       this.#logger.debug('JSON middleware validation passed', {
         expressJsonAvailable: true,
         middlewareValid: true,
-        endpoint: this.#endpoint
+        endpoint: this.#endpoint,
       });
-      
     } catch (error) {
-      const errorMsg = `JSON middleware validation failed: ${error.message}\n` +
+      const errorMsg =
+        `JSON middleware validation failed: ${error.message}\n` +
         `This router cannot handle JSON-RPC requests properly.\n\n` +
         `Possible solutions:\n` +
         `- Update Express: npm install express@latest (requires >=4.16.0)\n` +
         `- Add JSON parsing middleware manually: router.use(express.json())\n` +
         `- Install body-parser: npm install body-parser`;
-      
+
       this.#logger.error('JSON middleware validation failed', {
         error: error.message,
-        expressVersion: require('express/package.json')?.version || 'unknown',
-        endpoint: this.#endpoint
+        expressVersion: expressPkg?.version || 'unknown',
+        endpoint: this.#endpoint,
       });
-      
+
       throw new Error(errorMsg);
     }
   }
@@ -241,7 +249,7 @@ class RpcEndpoint {
         res.json({
           status: 'ok',
           timestamp: new Date().toISOString(),
-          version: require('../package.json').version,
+          version: pkg.version,
         });
       });
     }
@@ -274,6 +282,11 @@ class RpcEndpoint {
 
           // Only send response if there are results (non-notification requests)
           if (results.length > 0) {
+            // Align batch responses with single-call header negotiation
+            res.setHeader(
+              'X-RPC-Safe-Enabled',
+              this.#options.safeEnabled ? 'true' : 'false'
+            );
             res.json(results);
           } else {
             res.status(204).end(); // No content for all-notification batch
@@ -361,30 +374,38 @@ class RpcEndpoint {
       const clientSafeHeader = req.headers['x-rpc-safe-enabled'];
 
       // Strict mode: se server ha safe enabled ma client non invia header → JSON-RPC ERROR
-      if (this.#options.strictMode && this.#options.safeEnabled && !clientSafeHeader) {
+      if (
+        this.#options.strictMode &&
+        this.#options.safeEnabled &&
+        !clientSafeHeader
+      ) {
         return this.reply(res, {
           id,
           error: {
             code: -32600, // Invalid Request
-            message: 'RPC Compatibility Error: Server requires safe serialization header but client did not provide it.',
+            message:
+              'RPC Compatibility Error: Server requires safe serialization header but client did not provide it.',
             data: {
               serverSafeEnabled: this.#options.safeEnabled,
               requiredHeader: 'X-RPC-Safe-Enabled',
               strictMode: true,
-              solution: 'Update client to rpc-express-toolkit v4+ or disable server strict mode'
-            }
-          }
+              solution:
+                'Update client to rpc-express-toolkit v4+ or disable server strict mode',
+            },
+          },
         });
       }
 
       // Use client's safe options for parameter deserialization
       const clientSafeEnabled = clientSafeHeader === 'true';
       const deserializationOptions = {
-        safeEnabled: clientSafeEnabled
+        safeEnabled: clientSafeEnabled,
       };
 
       // Deserialize parameters using client's safe options
-      const deserializedParams = params ? this.deserializeBigIntsAndDates(params, deserializationOptions) : params;
+      const deserializedParams = params
+        ? this.deserializeBigIntsAndDates(params, deserializationOptions)
+        : params;
 
       // Prepare middleware context
       let middlewareContext = {
@@ -483,6 +504,8 @@ class RpcEndpoint {
         },
       });
     }
+    // Ensure explicit return for consistent-return rule
+    return null;
   }
 
   /**
@@ -618,7 +641,10 @@ class RpcEndpoint {
 
     // Add safe options headers so client knows how to deserialize
     // Send safe options headers to client
-    res.setHeader('X-RPC-Safe-Enabled', this.#options.safeEnabled ? 'true' : 'false');
+    res.setHeader(
+      'X-RPC-Safe-Enabled',
+      this.#options.safeEnabled ? 'true' : 'false'
+    );
 
     res.json(response);
   }
@@ -642,30 +668,46 @@ class RpcEndpoint {
   #serializeValue(value, hasBigInt = false, hasDate = false) {
     if (typeof value === 'bigint') {
       // Warn if safeEnabled is disabled and we have BigInt
-      if (!this.#options.safeEnabled && !hasBigInt && this.#options.warnOnUnsafe) {
-        this.#logger.warn('BigInt detected in serialization. Consider enabling safeEnabled option to avoid potential string/BigInt confusion.');
+      if (
+        !this.#options.safeEnabled &&
+        !hasBigInt &&
+        this.#options.warnOnUnsafe
+      ) {
+        this.#logger.warn(
+          'BigInt detected in serialization. Consider enabling safeEnabled option to avoid potential string/BigInt confusion.'
+        );
       }
       // Convert BigInt to string with 'n' suffix for proper deserialization
-      return value.toString() + 'n';
-    } else if (value instanceof Date) {
+      return `${value.toString()}n`;
+    }
+    if (value instanceof Date) {
       // Warn if safeEnabled is disabled and we have Date
-      if (!this.#options.safeEnabled && !hasDate && this.#options.warnOnUnsafe) {
-        this.#logger.warn('Date detected in serialization. Consider enabling safeEnabled option to avoid potential string/Date confusion.');
+      if (
+        !this.#options.safeEnabled &&
+        !hasDate &&
+        this.#options.warnOnUnsafe
+      ) {
+        this.#logger.warn(
+          'Date detected in serialization. Consider enabling safeEnabled option to avoid potential string/Date confusion.'
+        );
       }
       // Convert Date to ISO string with D: prefix if safeEnabled
       const isoString = value.toISOString();
       return this.#options.safeEnabled ? `D:${isoString}` : isoString;
-    } else if (typeof value === 'string') {
+    }
+    if (typeof value === 'string') {
       // Add S: prefix if safeEnabled is true
       if (this.#options.safeEnabled) {
-        return 'S:' + value;
+        return `S:${value}`;
       }
       return value;
-    } else if (Array.isArray(value)) {
+    }
+    if (Array.isArray(value)) {
       // Recurse into arrays - don't pass hasBigInt/hasDate to children
       // Each element should be checked independently for warnings
       return value.map((v) => this.#serializeValue(v, false, false));
-    } else if (value && typeof value === 'object') {
+    }
+    if (value && typeof value === 'object') {
       // Recurse into plain objects - don't pass hasBigInt/hasDate to children
       // Each property should be checked independently for warnings
       const result = {};
@@ -685,9 +727,10 @@ class RpcEndpoint {
    */
   #hasDeepBigInt(obj) {
     if (typeof obj === 'bigint') return true;
-    if (Array.isArray(obj)) return obj.some(item => this.#hasDeepBigInt(item));
+    if (Array.isArray(obj))
+      return obj.some((item) => this.#hasDeepBigInt(item));
     if (obj && typeof obj === 'object') {
-      return Object.values(obj).some(val => this.#hasDeepBigInt(val));
+      return Object.values(obj).some((val) => this.#hasDeepBigInt(val));
     }
     return false;
   }
@@ -698,9 +741,9 @@ class RpcEndpoint {
    */
   #hasDeepDate(obj) {
     if (obj instanceof Date) return true;
-    if (Array.isArray(obj)) return obj.some(item => this.#hasDeepDate(item));
+    if (Array.isArray(obj)) return obj.some((item) => this.#hasDeepDate(item));
     if (obj && typeof obj === 'object') {
-      return Object.values(obj).some(val => this.#hasDeepDate(val));
+      return Object.values(obj).some((val) => this.#hasDeepDate(val));
     }
     return false;
   }
@@ -720,7 +763,9 @@ class RpcEndpoint {
    */
   deserializeBigIntsAndDates(value, options = null) {
     // Use provided options or fall back to server options
-    const safeEnabled = options ? options.safeEnabled : this.#options.safeEnabled;
+    const safeEnabled = options
+      ? options.safeEnabled
+      : this.#options.safeEnabled;
 
     // More comprehensive ISO date regex that handles:
     // - UTC: 2023-01-01T12:00:00.000Z
@@ -741,7 +786,7 @@ class RpcEndpoint {
         const isoString = value.substring(2); // Remove 'D:' prefix
         const date = new Date(isoString);
         // Double-check that we got a valid date
-        if (!isNaN(date.getTime())) {
+        if (!Number.isNaN(date.getTime())) {
           return date;
         }
       }
@@ -755,7 +800,7 @@ class RpcEndpoint {
       if (!safeEnabled && ISO_DATE_REGEX.test(value)) {
         const date = new Date(value);
         // Double-check that we got a valid date
-        if (!isNaN(date.getTime())) {
+        if (!Number.isNaN(date.getTime())) {
           return date;
         }
       }

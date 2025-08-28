@@ -15,6 +15,9 @@ npm install rpc-express-toolkit
 yarn add rpc-express-toolkit
 ```
 
+Requirements:
+- Node.js 18+ (uses `globalThis.fetch`)
+
 ### Server
 
 ```javascript
@@ -42,16 +45,16 @@ const sum = await client.call('add', { a: 1, b: 2 });
 
 ### Safe Type Disambiguation (optional)
 
-Safe type disambiguation is **disabled by default** for maximum JSON-RPC 2.0 compatibility. The library will show educational warnings when you use BigInt or Date values, helping you understand when these types need special handling. Enable safe serialization with `safeEnabled: true` to add safe prefixes (`S:` for strings, `D:` for dates), or suppress warnings with `warnOnUnsafe: false`. See `README_ADVANCED.md#safe-serialization` for full details and best practices.
+Safe type disambiguation is disabled by default for maximum JSON-RPC 2.0 compatibility. The library can show warnings when BigInt or Date values are serialized in standard mode. Enable safe serialization with `safeEnabled: true` to add safe prefixes (`S:` for strings, `D:` for dates), or suppress warnings with `warnOnUnsafe: false`. See `README_ADVANCED.md#safe-serialization` for details.
 
 ## Minimal API
 
-- `new RpcEndpoint(router, context, options?)` — create and attach a JSON-RPC endpoint.  
-- `rpc.addMethod(name, handlerOrConfig)` — register a method.  
-- `new RpcClient(baseUrl, headers?, options?)` — client for making calls.  
-- `client.call(method, params?)` — single call.  
-- `client.batch([...])` — batch.  
-- `client.notify(method, params?)` — notification.
+- `new RpcEndpoint(router, context, options?)`: create and attach a JSON-RPC endpoint.
+- `rpc.addMethod(name, handlerOrConfig)`: register a method (function or `{ handler, schema }`).
+- `new RpcClient(baseUrl, headers?, options?)`: client for making calls.
+- `client.call(method, params?)`: single call.
+- `client.batch([...])`: batch.
+- `client.notify(method, params?)`: notification.
 
 ## Full Details
 

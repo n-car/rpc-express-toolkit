@@ -1,43 +1,28 @@
 /**
  * JSON-RPC 2.0 Client for browser and Node.js environments.
- * Handles BigInt and Date serialization/deserialization automatically.
- *
- * Note: We extend BigInt.prototype.toJSON to handle automatic serialization
- * when JSON.stringify() is called, as BigInt doesn't have native JSON support.
+ * Handles BigInt and Date serialization/deserialization automatically
+ * using explicit serializers (no global prototype extensions).
  */
 
-// Extend BigInt prototype to handle JSON serialization
-if (typeof BigInt !== 'undefined' && !BigInt.prototype.toJSON) {
-  BigInt.prototype.toJSON = function () {
-    return this.toString();
-  };
-}
-
-// Polyfill for Node.js environments that don't have fetch
+// Select fetch implementation (Node 18+ or browser)
 let fetchFn;
-if (typeof fetch !== 'undefined') {
-  fetchFn = fetch;
+if (typeof globalThis !== 'undefined' && globalThis.fetch) {
+  fetchFn = globalThis.fetch.bind(globalThis);
 } else {
-  // Try to use node-fetch if available, otherwise use built-in fetch in Node.js 18+
-  try {
-    fetchFn = require('node-fetch');
-  } catch (e) {
-    // For Node.js 18+, use global fetch
-    if (typeof globalThis !== 'undefined' && globalThis.fetch) {
-      fetchFn = globalThis.fetch;
-    } else {
-      throw new Error(
-        'fetch is not available. Please install node-fetch or use Node.js 18+'
-      );
-    }
-  }
+  throw new Error(
+    'globalThis.fetch is not available. Node.js 18+ is required.'
+  );
 }
 
 class RpcClient {
   #endpoint;
+
   #defaultHeaders;
+
   #requestId;
+
   #fetchOptions;
+
   #options;
 
   /**
@@ -61,7 +46,7 @@ class RpcClient {
     this.#options = {
       safeEnabled: options.safeEnabled === true, // Default false
       warnOnUnsafe: options.warnOnUnsafe !== false, // Default true
-      ...options
+      ...options,
     };
 
     // Store fetch options for Node.js environments
@@ -113,8 +98,7 @@ class RpcClient {
           'X-RPC-Safe-Enabled': this.#options.safeEnabled ? 'true' : 'false',
           ...overrideHeaders,
         },
-        // Since we have BigInt.prototype.toJSON, we don't need manual serialization
-        // JSON.stringify will handle BigInt and Date automatically
+        // Params are pre-serialized (BigInt/Date) via serializeBigIntsAndDates
         body: JSON.stringify(requestBody),
         ...this.#fetchOptions, // Include any additional fetch options (e.g., SSL settings)
       });
@@ -138,16 +122,20 @@ class RpcClient {
       if (this.#options.safeEnabled && serverSafeHeader === null) {
         throw new Error(
           'RPC Compatibility Error: Client has safe serialization enabled but server did not respond with compatibility header (X-RPC-Safe-Enabled). ' +
-          'This may indicate a version mismatch or non-toolkit server. ' +
-          'Solutions: (1) Update server to rpc-express-toolkit v4+, (2) Disable client safeEnabled option, or (3) Use a compatible JSON-RPC server.'
+            'This may indicate a version mismatch or non-toolkit server. ' +
+            'Solutions: (1) Update server to rpc-express-toolkit v4+, (2) Disable client safeEnabled option, or (3) Use a compatible JSON-RPC server.'
         );
       }
 
       // Warning: se client ha safe disabled ma server offre compatibilità
-      if (!this.#options.safeEnabled && serverSafeHeader === 'true' && this.#options.warnOnUnsafe) {
+      if (
+        !this.#options.safeEnabled &&
+        serverSafeHeader === 'true' &&
+        this.#options.warnOnUnsafe
+      ) {
         console.warn(
           '⚠️  RPC Compatibility Notice: Server supports safe serialization but client has safeEnabled=false. ' +
-          'Consider enabling safeEnabled option for better BigInt/Date handling and forward compatibility.'
+            'Consider enabling safeEnabled option for better BigInt/Date handling and forward compatibility.'
         );
       }
 
@@ -155,11 +143,14 @@ class RpcClient {
 
       // Create deserialization options based on server's configuration
       const deserializationOptions = {
-        safeEnabled: serverSafeEnabled
+        safeEnabled: serverSafeEnabled,
       };
 
       // Convert back BigInts and Dates in the result using server's options
-      return this.deserializeBigIntsAndDates(responseBody.result, deserializationOptions);
+      return this.deserializeBigIntsAndDates(
+        responseBody.result,
+        deserializationOptions
+      );
     } catch (error) {
       console.error('RPC call failed:', error);
       throw error;
@@ -207,6 +198,7 @@ class RpcClient {
           'X-RPC-Safe-Enabled': this.#options.safeEnabled ? 'true' : 'false',
           ...overrideHeaders,
         },
+        // Params are pre-serialized per item
         body: JSON.stringify(batchRequests),
         ...this.#fetchOptions, // Include any additional fetch options (e.g., SSL settings)
       });
@@ -226,16 +218,20 @@ class RpcClient {
       if (this.#options.safeEnabled && serverSafeHeader === null) {
         throw new Error(
           'RPC Compatibility Error: Client has safe serialization enabled but server did not respond with compatibility header (X-RPC-Safe-Enabled). ' +
-          'This may indicate a version mismatch or non-toolkit server. ' +
-          'Solutions: (1) Update server to rpc-express-toolkit v4+, (2) Disable client safeEnabled option, or (3) Use a compatible JSON-RPC server.'
+            'This may indicate a version mismatch or non-toolkit server. ' +
+            'Solutions: (1) Update server to rpc-express-toolkit v4+, (2) Disable client safeEnabled option, or (3) Use a compatible JSON-RPC server.'
         );
       }
 
       // Warning: se client ha safe disabled ma server offre compatibilità
-      if (!this.#options.safeEnabled && serverSafeHeader === 'true' && this.#options.warnOnUnsafe) {
+      if (
+        !this.#options.safeEnabled &&
+        serverSafeHeader === 'true' &&
+        this.#options.warnOnUnsafe
+      ) {
         console.warn(
           '⚠️  RPC Compatibility Notice: Server supports safe serialization but client has safeEnabled=false. ' +
-          'Consider enabling safeEnabled option for better BigInt/Date handling and forward compatibility.'
+            'Consider enabling safeEnabled option for better BigInt/Date handling and forward compatibility.'
         );
       }
 
@@ -243,7 +239,7 @@ class RpcClient {
 
       // Create deserialization options based on server's configuration
       const deserializationOptions = {
-        safeEnabled: serverSafeEnabled
+        safeEnabled: serverSafeEnabled,
       };
 
       // Handle batch response
@@ -252,15 +248,22 @@ class RpcClient {
           if (res.error) {
             throw res.error;
           }
-          return this.deserializeBigIntsAndDates(res.result, deserializationOptions);
+          return this.deserializeBigIntsAndDates(
+            res.result,
+            deserializationOptions
+          );
         });
-      } else {
-        // Single response in batch
-        if (responseBody.error) {
-          throw responseBody.error;
-        }
-        return [this.deserializeBigIntsAndDates(responseBody.result, deserializationOptions)];
       }
+      // Single response in batch
+      if (responseBody.error) {
+        throw responseBody.error;
+      }
+      return [
+        this.deserializeBigIntsAndDates(
+          responseBody.result,
+          deserializationOptions
+        ),
+      ];
     } catch (error) {
       console.error('Batch RPC call failed:', error);
       throw error;
@@ -276,34 +279,40 @@ class RpcClient {
   serializeBigIntsAndDates(value) {
     if (typeof value === 'bigint') {
       // Convert BigInt to string with 'n' suffix for proper deserialization
-      return value.toString() + 'n';
-    } else if (value instanceof Date) {
+      return `${value.toString()}n`;
+    }
+    if (value instanceof Date) {
       // Convert Date to ISO string with D: prefix if safeEnabled
       const isoString = value.toISOString();
       if (this.#options.safeEnabled) {
         return `D:${isoString}`;
-      } else {
-        // Show educational warning if enabled
-        if (this.#options.warnOnUnsafe) {
-          console.warn('⚠️  Date serialization: Using plain ISO string format for JSON-RPC 2.0 compliance. Date objects will be deserialized as strings on the receiving end. Consider enabling safeEnabled or using string timestamps for better type safety.');
-        }
-        return isoString;
       }
-    } else if (typeof value === 'string') {
+      // Show educational warning if enabled
+      if (this.#options.warnOnUnsafe) {
+        console.warn(
+          '⚠️  Date serialization: Using plain ISO string format for JSON-RPC 2.0 compliance. Date objects will be deserialized as strings on the receiving end. Consider enabling safeEnabled or using string timestamps for better type safety.'
+        );
+      }
+      return isoString;
+    }
+    if (typeof value === 'string') {
       // Add S: prefix if safeEnabled is true
       if (this.#options.safeEnabled) {
-        return 'S:' + value;
-      } else {
-        // Show educational warning if enabled and string could be confused with BigInt
-        if (this.#options.warnOnUnsafe && /^-?\d+n?$/.test(value)) {
-          console.warn(`⚠️  String serialization: String "${value}" could be confused with BigInt. Consider enabling safeEnabled for disambiguation or use explicit typing.`);
-        }
-        return value;
+        return `S:${value}`;
       }
-    } else if (Array.isArray(value)) {
+      // Show educational warning if enabled and string could be confused with BigInt
+      if (this.#options.warnOnUnsafe && /^-?\d+n?$/.test(value)) {
+        console.warn(
+          `⚠️  String serialization: String "${value}" could be confused with BigInt. Consider enabling safeEnabled for disambiguation or use explicit typing.`
+        );
+      }
+      return value;
+    }
+    if (Array.isArray(value)) {
       // Recurse into arrays
       return value.map((v) => this.serializeBigIntsAndDates(v));
-    } else if (value && typeof value === 'object') {
+    }
+    if (value && typeof value === 'object') {
       // Recurse into plain objects
       const result = {};
       for (const [key, val] of Object.entries(value)) {
@@ -327,7 +336,9 @@ class RpcClient {
    */
   deserializeBigIntsAndDates(value, options = null) {
     // Use provided options or fall back to client options
-    const safeEnabled = options ? options.safeEnabled : this.#options.safeEnabled;
+    const safeEnabled = options
+      ? options.safeEnabled
+      : this.#options.safeEnabled;
 
     // More comprehensive ISO date regex that handles:
     // - UTC: 2023-01-01T12:00:00.000Z
@@ -348,7 +359,7 @@ class RpcClient {
         const isoString = value.substring(2); // Remove 'D:' prefix
         const date = new Date(isoString);
         // Double-check that we got a valid date
-        if (!isNaN(date.getTime())) {
+        if (!Number.isNaN(date.getTime())) {
           return date;
         }
       }
@@ -358,12 +369,12 @@ class RpcClient {
       if (/^-?\d+n$/.test(value)) {
         return BigInt(value.slice(0, -1)); // Remove 'n' and convert
       }
-      
+
       // Date check: matches an ISO 8601 string (only if safeEnabled is false)
       if (!safeEnabled && ISO_DATE_REGEX.test(value)) {
         const date = new Date(value);
         // Ensure it's valid
-        if (!isNaN(date.getTime())) {
+        if (!Number.isNaN(date.getTime())) {
           return date;
         }
       }

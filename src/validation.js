@@ -1,3 +1,4 @@
+/* eslint max-classes-per-file: off */
 const Ajv = require('ajv');
 const addFormats = require('ajv-formats');
 

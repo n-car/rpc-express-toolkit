@@ -30,6 +30,8 @@
   },
   "keywords": [
     "json-rpc",
+    "jsonrpc",
+    "json-rpc-2.0",
     "express",
     "toolkit",
     "rpc",
@@ -37,13 +39,24 @@
     "client",
     "middleware",
     "validation",
+    "schema",
+    "ajv",
     "bigint",
+    "date",
     "enterprise",
     "nodejs",
+    "node",
+    "browser",
     "ssl",
     "self-signed",
     "secure",
-    "fetch"
+    "fetch",
+    "batch",
+    "typescript",
+    "logging",
+    "cors",
+    "rate-limit",
+    "authentication"
   ],
   "author": "Nicola Carpanese <nicola.carpanese@gmail.com>",
   "license": "MIT",
@@ -52,7 +65,7 @@
   },
   "homepage": "https://github.com/n-car/rpc-express-toolkit#readme",
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=18.0.0"
   },
   "devDependencies": {
     "eslint": "^8.57.1",
@@ -73,9 +86,7 @@
     "express": "^4.21.2",
     "nested-error-stacks": "^2.1.1"
   },
-  "optionalDependencies": {
-    "node-fetch": "^2.7.0"
-  },
+  "optionalDependencies": {},
   "contributors": [
     {
       "name": "Nicola Carpanese",

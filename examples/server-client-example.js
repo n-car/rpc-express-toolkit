@@ -10,7 +10,7 @@ const context = {
   userId: 'system',
 };
 
-// Create JSON-RPC endpoint with clean names
+// Create JSON-RPC endpoint
 const rpc = new RpcEndpoint(app, context);
 
 // Add some methods
@@ -29,12 +29,12 @@ rpc.addMethod('getData', (req, ctx, params) => {
   return { key, value };
 });
 
-rpc.addMethod('getAllData', (req, ctx) => {
-  return Array.from(ctx.database.entries()).map(([key, value]) => ({
+rpc.addMethod('getAllData', (req, ctx) =>
+  Array.from(ctx.database.entries()).map(([key, value]) => ({
     key,
     value,
-  }));
-});
+  }))
+);
 
 rpc.addMethod('testBigInt', (req, ctx, params) => {
   const bigNumber = BigInt(params.number || '123456789012345678901234567890');
@@ -49,61 +49,61 @@ rpc.addMethod('testBigInt', (req, ctx, params) => {
 // Start server
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => {
-  console.log(`🚀 JSON-RPC Server running on http://localhost:${PORT}`);
-  console.log(`📡 Endpoint: http://localhost:${PORT}/api`);
+  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Endpoint: http://localhost:${PORT}/api`);
 
   // === CLIENT DEMO ===
   setTimeout(async () => {
-    console.log('\n🔧 Testing client...');
+    console.log('\nTesting client...');
 
     const client = new RpcClient(`http://localhost:${PORT}/api`);
 
     try {
       // Test 1: Save some data
-      console.log('📝 Saving data...');
+      console.log('Saving data...');
       const saveResult = await client.call('saveData', {
         key: 'test',
         value: 'Hello World!',
       });
-      console.log('✅ Save result:', saveResult);
+      console.log('Save result:', saveResult);
 
       // Test 2: Get data back
-      console.log('\n📖 Getting data...');
+      console.log('\nGetting data...');
       const getData = await client.call('getData', { key: 'test' });
-      console.log('✅ Get result:', getData);
+      console.log('Get result:', getData);
 
       // Test 3: Test BigInt handling
-      console.log('\n🔢 Testing BigInt...');
+      console.log('\nTesting BigInt...');
       const bigIntResult = await client.call('testBigInt', {
         number: '999999999999999999999999999999',
       });
-      console.log('✅ BigInt result:', bigIntResult);
-      console.log('   - Original BigInt type:', typeof bigIntResult.bigint);
-      console.log('   - Doubled BigInt type:', typeof bigIntResult.doubled);
-      console.log('   - Timestamp type:', typeof bigIntResult.timestamp);
+      console.log('BigInt result:', bigIntResult);
+      console.log('   - bigint type:', typeof bigIntResult.bigint);
+      console.log('   - doubled type:', typeof bigIntResult.doubled);
+      console.log('   - timestamp type:', typeof bigIntResult.timestamp);
 
       // Test 4: Get all data
-      console.log('\n📊 Getting all data...');
+      console.log('\nGetting all data...');
       const allData = await client.call('getAllData');
-      console.log('✅ All data:', allData);
+      console.log('All data:', allData);
 
       // Test 5: Test error handling
-      console.log('\n❌ Testing error handling...');
+      console.log('\nTesting error handling...');
       try {
         await client.call('getData', { key: 'nonexistent' });
       } catch (error) {
-        console.log('✅ Error caught correctly:', error.message);
+        console.log('Error caught correctly:', error.message);
       }
 
-      console.log('\n✨ All tests completed successfully!');
+      console.log('\nAll tests completed successfully!');
     } catch (error) {
-      console.error('❌ Client error:', error);
+      console.error('Client error:', error);
     }
 
     // Close server after demo
     setTimeout(() => {
       server.close(() => {
-        console.log('\n👋 Server closed');
+        console.log('\nServer closed');
         process.exit(0);
       });
     }, 1000);
@@ -112,9 +112,9 @@ const server = app.listen(PORT, () => {
 
 // Handle graceful shutdown
 process.on('SIGINT', () => {
-  console.log('\n🛑 Shutting down server...');
+  console.log('\nShutting down server...');
   server.close(() => {
-    console.log('👋 Server closed');
+    console.log('Server closed');
     process.exit(0);
   });
 });

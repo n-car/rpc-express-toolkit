@@ -42,32 +42,37 @@ class MiddlewareManager {
    */
   async execute(hook, context) {
     const middlewares = this.middlewares[hook] || [];
-    let result = context;
+    const isErrorHook = hook === 'onError';
 
-    for (const middleware of middlewares) {
-      try {
-        const middlewareResult = await middleware(result);
+    const finalResult = await middlewares.reduce(
+      (promise, middleware) =>
+        promise.then(async (acc) => {
+          try {
+            const middlewareResult = await middleware(acc);
 
-        // If middleware returns an object, merge it with context
-        if (middlewareResult && typeof middlewareResult === 'object') {
-          result = { ...result, ...middlewareResult };
-        }
+            if (middlewareResult === false) {
+              // Stop chain
+              return acc;
+            }
 
-        // If middleware explicitly returns false, stop execution
-        if (middlewareResult === false) {
-          throw new Error('Middleware execution stopped');
-        }
-      } catch (error) {
-        // For error hooks, continue even if middleware fails
-        if (hook === 'onError') {
-          console.error('Error middleware failed:', error);
-          continue;
-        }
-        throw error;
-      }
-    }
+            // If middleware returns an object, merge it with context
+            if (middlewareResult && typeof middlewareResult === 'object') {
+              return { ...acc, ...middlewareResult };
+            }
 
-    return result;
+            return acc;
+          } catch (error) {
+            if (isErrorHook) {
+              console.error('Error middleware failed:', error);
+              return acc;
+            }
+            throw error;
+          }
+        }),
+      Promise.resolve(context)
+    );
+
+    return finalResult;
   }
 
   /**

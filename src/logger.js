@@ -48,6 +48,24 @@ class Logger {
   }
 
   /**
+   * Safely stringify objects that may contain BigInt/Date
+   * @param {any} obj
+   * @returns {string}
+   */
+  safeStringify(obj) {
+    try {
+      return JSON.stringify(obj, (key, value) => {
+        if (typeof value === 'bigint') return `${value.toString()}n`;
+        if (value instanceof Date) return value.toISOString();
+        return value;
+      });
+    } catch (e) {
+      // Fallback: best-effort toString
+      return String(obj);
+    }
+  }
+
+  /**
    * Generic log method
    * @param {string} level
    * @param {string} message
@@ -63,7 +81,7 @@ class Logger {
     } else {
       const logMessage = `${this.prefix} ${logData.timestamp} [${logData.level}] ${message}`;
       const metaStr =
-        Object.keys(meta).length > 0 ? ` | ${JSON.stringify(meta)}` : '';
+        Object.keys(meta).length > 0 ? ` | ${this.safeStringify(meta)}` : '';
       console[level === 'debug' || level === 'trace' ? 'log' : level](
         `${logMessage}${metaStr}`
       );
@@ -120,7 +138,7 @@ class Logger {
       id,
       duration: `${duration}ms`,
       resultType: typeof result,
-      resultSize: result ? JSON.stringify(result).length : 0,
+      resultSize: result ? this.safeStringify(result).length : 0,
     });
   }
 
@@ -160,21 +178,23 @@ class Logger {
     ];
     const sanitized = Array.isArray(params) ? [...params] : { ...params };
 
-    const sanitizeObj = (obj) => {
-      if (typeof obj !== 'object' || obj === null) return obj;
+    const sanitizeObj = (input) => {
+      if (typeof input !== 'object' || input === null) return input;
 
-      for (const [key, value] of Object.entries(obj)) {
-        if (
-          sensitiveKeys.some((sensitive) =>
-            key.toLowerCase().includes(sensitive)
-          )
-        ) {
-          obj[key] = '[REDACTED]';
-        } else if (typeof value === 'object') {
-          sanitizeObj(value);
+      const output = Array.isArray(input) ? [] : {};
+      for (const [key, value] of Object.entries(input)) {
+        const isSensitive = sensitiveKeys.some((sensitive) =>
+          key.toLowerCase().includes(sensitive)
+        );
+        if (isSensitive) {
+          output[key] = '[REDACTED]';
+        } else if (typeof value === 'object' && value !== null) {
+          output[key] = sanitizeObj(value);
+        } else {
+          output[key] = value;
         }
       }
-      return obj;
+      return output;
     };
 
     return sanitizeObj(sanitized);

@@ -96,7 +96,7 @@ interface RpcEndpointOptions {
   prefix?: string;
   maxBodySize?: string;
   timeout?: number;
-  cors?: boolean | CorsOptions;
+  cors?: boolean | CorsConfig;
   auth?: AuthConfig;
   validation?: ValidationConfig;
   safeEnabled?: boolean;
@@ -113,6 +113,11 @@ interface RpcEndpointOptions {
     type?: string | string[] | ((req: any) => boolean);
     verify?: (req: any, res: any, buf: Buffer, encoding: string) => void;
   };
+  // Additional options supported by implementation
+  methodWhitelist?: string[];
+  timing?: boolean;
+  metrics?: boolean;
+  healthCheck?: boolean;
 }
 
 /**

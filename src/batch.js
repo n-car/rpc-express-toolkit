@@ -156,12 +156,21 @@ class BatchHandler {
     // If no id is provided, this is a notification - don't return response
     const isNotification = id === undefined || id === null;
 
+    // Determine client safe mode from headers and deserialize params accordingly
+    const clientSafeHeader = req.headers['x-rpc-safe-enabled'];
+    const clientSafeEnabled = clientSafeHeader === 'true';
+    const deserializedParams = params
+      ? this.endpoint.deserializeBigIntsAndDates(params, {
+          safeEnabled: clientSafeEnabled,
+        })
+      : params;
+
     // Initialize middleware context
     let middlewareContext = {
       req,
       res: null, // No response object for batch items
       method,
-      params,
+      params: deserializedParams,
       context,
       batchIndex,
       isNotification,
