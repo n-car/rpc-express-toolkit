@@ -47,12 +47,16 @@ class MiddlewareManager {
     const finalResult = await middlewares.reduce(
       (promise, middleware) =>
         promise.then(async (acc) => {
+          // If a previous middleware requested stop, propagate without executing others
+          if (acc && acc.__middlewareStopped) {
+            return acc;
+          }
           try {
             const middlewareResult = await middleware(acc);
 
             if (middlewareResult === false) {
-              // Stop chain
-              return acc;
+              // Mark chain as stopped
+              return { ...acc, __middlewareStopped: true };
             }
 
             // If middleware returns an object, merge it with context
@@ -72,6 +76,11 @@ class MiddlewareManager {
       Promise.resolve(context)
     );
 
+    // Do not expose internal marker
+    if (finalResult && finalResult.__middlewareStopped) {
+      const { __middlewareStopped, ...rest } = finalResult;
+      return rest;
+    }
     return finalResult;
   }
 
