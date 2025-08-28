@@ -1,8 +1,10 @@
 # RPC Express Toolkit
 
 [![CI](https://github.com/n-car/rpc-express-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/n-car/rpc-express-toolkit/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/n-car/rpc-express-toolkit/badge.svg?branch=main)](https://coveralls.io/github/n-car/rpc-express-toolkit?branch=main)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![npm version](https://img.shields.io/npm/v/rpc-express-toolkit.svg)](https://www.npmjs.com/package/rpc-express-toolkit)
+[![npm downloads](https://img.shields.io/npm/dm/rpc-express-toolkit.svg)](https://www.npmjs.com/package/rpc-express-toolkit)
 
 Enterprise-ready JSON-RPC 2.0 toolkit for Express.js with simplified APIs, middleware, schema validation, batch support, and optional safe type disambiguation.
 
