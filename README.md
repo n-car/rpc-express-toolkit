@@ -59,6 +59,27 @@ Safe type disambiguation is disabled by default for maximum JSON-RPC 2.0 compati
 - `client.batch([...])`: batch.
 - `client.notify(method, params?)`: notification.
 
+### Safe Import (opt-in)
+
+When you control both client and server and want safer type round-trips, import the safe preset. It enables safe serialization by default (and strict mode on the server):
+
+```js
+// Server (safe preset)
+const express = require('express');
+const { createSafeEndpoint } = require('rpc-express-toolkit/safe');
+
+const app = express();
+app.use(express.json());
+
+const rpc = createSafeEndpoint(app, {}, { endpoint: '/api' /* strictMode: true by default */ });
+
+// Client (safe preset)
+const { createSafeClient } = require('rpc-express-toolkit/safe');
+const client = createSafeClient('http://localhost:3000/api');
+```
+
+This keeps JSON-RPC 2.0 compliance as default for the main entrypoint, while offering a convenient safe-mode import for projects that prefer explicit type disambiguation.
+
 ## Full Details
 
 For advanced configuration, middleware, structured logging, safe serialization, error handling, and more, see `README_ADVANCED.md`.

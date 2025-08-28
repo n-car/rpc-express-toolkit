@@ -4,6 +4,18 @@
   "description": "Enterprise-ready JSON-RPC 2.0 toolkit for Express.js with simplified APIs, structured logging, middleware system, schema validation, comprehensive BigInt/Date support. JSON middleware validation and explicit configuration.",
   "main": "src/index.js",
   "types": "src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "require": "./src/index.js",
+      "import": "./src/index.js"
+    },
+    "./safe": {
+      "types": "./src/safe.d.ts",
+      "require": "./src/safe.js",
+      "import": "./src/safe.js"
+    }
+  },
   "files": [
     "src/",
     "examples/",
