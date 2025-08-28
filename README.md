@@ -82,6 +82,27 @@ const client = createSafeClient('http://localhost:3000/api');
 
 This keeps JSON-RPC 2.0 compliance as default for the main entrypoint, while offering a convenient safe-mode import for projects that prefer explicit type disambiguation.
 
+Alternative: npm proxy package
+
+If you prefer a dedicated package name, you can install the thin proxy `rpc-express-toolkit-safe` which simply re-exports the safe preset:
+
+```bash
+npm install rpc-express-toolkit-safe
+```
+
+```js
+// Server
+const express = require('express');
+const { createSafeEndpoint } = require('rpc-express-toolkit-safe');
+const app = express();
+app.use(express.json());
+const rpc = createSafeEndpoint(app, {}, { endpoint: '/api' });
+
+// Client
+const { createSafeClient } = require('rpc-express-toolkit-safe');
+const client = createSafeClient('http://localhost:3000/api');
+```
+
 ## Full Details
 
 For advanced configuration, middleware, structured logging, safe serialization, error handling, and more, see `README_ADVANCED.md`.
