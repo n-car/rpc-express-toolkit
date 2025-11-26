@@ -105,6 +105,45 @@ const { createSafeClient } = require('rpc-express-toolkit-safe');
 const client = createSafeClient('http://localhost:3000/api');
 ```
 
+## Introspection Methods
+
+Enable introspection to expose metadata about registered methods via reserved `__rpc.*` methods:
+
+```javascript
+const rpc = new RpcEndpoint(app, context, {
+  enableIntrospection: true  // Enable __rpc.* methods
+});
+
+// Register methods with public schemas
+rpc.addMethod('add', async (req, ctx, params) => {
+  return params.a + params.b;
+}, {
+  schema: {
+    type: 'object',
+    properties: {
+      a: { type: 'number' },
+      b: { type: 'number' }
+    },
+    required: ['a', 'b']
+  },
+  exposeSchema: true,        // Make schema publicly queryable
+  description: 'Add two numbers'
+});
+
+// Available introspection methods:
+// __rpc.listMethods() → ["add", "multiply", ...]
+// __rpc.describe({method: "add"}) → {name, schema, description}
+// __rpc.describeAll() → [{name, schema, description}, ...]
+// __rpc.version() → {toolkit, version, expressVersion, nodeVersion}
+// __rpc.capabilities() → {safeMode, batch, introspection, ...}
+
+// Client usage
+const methods = await client.call('__rpc.listMethods');
+const addInfo = await client.call('__rpc.describe', { method: 'add' });
+```
+
+**Note:** The introspection prefix is configurable via `introspectionPrefix` option (default: `__rpc`). User methods starting with this prefix are rejected to prevent conflicts.
+
 ## Full Details
 
 For advanced configuration, middleware, structured logging, safe serialization, error handling, and more, see `README_ADVANCED.md`.
