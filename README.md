@@ -109,6 +109,14 @@ const client = createSafeClient('http://localhost:3000/api');
 
 For advanced configuration, middleware, structured logging, safe serialization, error handling, and more, see `README_ADVANCED.md`.
 
+## 🔗 Related Projects
+
+- [rpc-php-toolkit](https://github.com/n-car/rpc-php-toolkit) - PHP implementation
+- [rpc-dotnet-toolkit](https://github.com/n-car/rpc-dotnet-toolkit) - .NET implementation
+- [rpc-arduino-toolkit](https://github.com/n-car/rpc-arduino-toolkit) - Arduino/ESP32 implementation
+- [rpc-java-toolkit](https://github.com/n-car/rpc-java-toolkit) - Java & Android implementation
+- [node-red-contrib-rpc-toolkit](https://github.com/n-car/node-red-contrib-rpc-toolkit) - Node-RED visual programming
+
 ## Contributing
 
 ```bash
