@@ -166,23 +166,25 @@ See the `examples/` folder for runnable samples.
 
 ### Safe Preset Entry Point
 
-If you prefer safe serialization by default (and you control both client and server), you can import the safe preset:
+If you prefer safe serialization by default (and you control both client and server), you can use the dedicated classes:
 
 ```js
 // Server
 const express = require('express');
-const { createSafeEndpoint } = require('rpc-express-toolkit/safe');
+const { RpcSafeEndpoint } = require('rpc-express-toolkit/safe');
 
 const app = express();
 app.use(express.json());
-const rpc = createSafeEndpoint(app, {}, { endpoint: '/api' }); // safeEnabled + strictMode by default
+const rpc = new RpcSafeEndpoint(app, {}, { endpoint: '/api' }); // safeEnabled + strictMode by default
 
 // Client
-const { createSafeClient } = require('rpc-express-toolkit/safe');
-const client = createSafeClient('http://localhost:3000/api'); // safeEnabled by default
+const { RpcSafeClient } = require('rpc-express-toolkit/safe');
+const client = new RpcSafeClient('http://localhost:3000/api'); // safeEnabled by default
 ```
 
-This is a thin convenience wrapper over the main API with `safeEnabled: true` (and `strictMode: true` on the server). It lets you keep the default entrypoint fully JSON‑RPC 2.0 compliant while offering a clear opt‑in for advanced type disambiguation.
+These classes extend `RpcClient` and `RpcEndpoint` with `safeEnabled: true` (and `strictMode: true` on the server) as defaults. This lets you keep the default entrypoint fully JSON‑RPC 2.0 compliant while offering a clear opt‑in for advanced type disambiguation.
+
+**Note:** The factory functions `createSafeClient()` and `createSafeEndpoint()` are deprecated in favor of the class-based API.
 
 ### Contributing
 
