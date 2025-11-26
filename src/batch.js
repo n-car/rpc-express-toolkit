@@ -140,8 +140,8 @@ class BatchHandler {
       };
     }
 
-    const handler = this.endpoint.methods[method];
-    if (!handler) {
+    const methodConfig = this.endpoint.methods[method];
+    if (!methodConfig) {
       return {
         jsonrpc: '2.0',
         id: id || null,
@@ -152,6 +152,10 @@ class BatchHandler {
         },
       };
     }
+
+    // Extract handler (support both function and config object)
+    const handler =
+      typeof methodConfig === 'function' ? methodConfig : methodConfig.handler;
 
     // If no id is provided, this is a notification - don't return response
     const isNotification = id === undefined || id === null;
