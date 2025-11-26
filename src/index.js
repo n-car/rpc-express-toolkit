@@ -101,10 +101,10 @@ class RpcEndpoint {
 
   /** @type {{ [name: string]: any }} */
   #methods = {};
-  
+
   /** @type {string} */
   #introspectionPrefix = '__rpc';
-  
+
   /** @type {boolean} */
   #isInternalRegistration = false;
 
@@ -149,14 +149,16 @@ class RpcEndpoint {
     this.#options.safeEnabled = this.#options.safeEnabled === true; // Default false
     this.#options.warnOnUnsafe = this.#options.warnOnUnsafe !== false; // Default true
     this.#options.strictMode = this.#options.strictMode !== false; // Default true
-    this.#options.enableIntrospection = this.#options.enableIntrospection === true; // Default false
-    this.#options.introspectionPrefix = this.#options.introspectionPrefix || '__rpc'; // Default __rpc
-    
+    this.#options.enableIntrospection =
+      this.#options.enableIntrospection === true; // Default false
+    this.#options.introspectionPrefix =
+      this.#options.introspectionPrefix || '__rpc'; // Default __rpc
+
     this.#introspectionPrefix = this.#options.introspectionPrefix;
 
     // Validate that the router can handle JSON parsing
     this.#validateJsonMiddleware();
-    
+
     // Register introspection methods if enabled
     if (this.#options.enableIntrospection) {
       this.#registerIntrospectionMethods();
@@ -198,104 +200,125 @@ class RpcEndpoint {
       );
     }
   }
-  
+
   /**
    * Register introspection methods (__rpc.*)
    * @private
    */
   #registerIntrospectionMethods() {
     this.#isInternalRegistration = true;
-    
+
     // __rpc.listMethods - List all user methods (excludes __rpc.* methods)
-    this.addMethod(`${this.#introspectionPrefix}.listMethods`, async (req, context, params) => {
-      return Object.keys(this.#methods)
-        .filter(name => !name.startsWith(this.#introspectionPrefix));
-    }, {
-      description: 'List all available RPC methods',
-      exposeSchema: true
-    });
-    
+    this.addMethod(
+      `${this.#introspectionPrefix}.listMethods`,
+      async (_req, _context, _params) =>
+        Object.keys(this.#methods).filter(
+          (name) => !name.startsWith(this.#introspectionPrefix)
+        ),
+      {
+        description: 'List all available RPC methods',
+        exposeSchema: true,
+      }
+    );
+
     // __rpc.describe - Get schema and description of a specific method
-    this.addMethod(`${this.#introspectionPrefix}.describe`, async (req, context, params) => {
-      const methodName = params?.method;
-      
-      if (!methodName || typeof methodName !== 'string') {
-        throw { code: -32602, message: 'Invalid params: method name required' };
-      }
-      
-      // Prevent introspection of __rpc.* methods
-      if (methodName.startsWith(this.#introspectionPrefix)) {
-        throw { code: -32601, message: 'Cannot describe introspection methods' };
-      }
-      
-      const methodConfig = this.#methods[methodName];
-      if (!methodConfig) {
-        throw { code: -32601, message: `Method not found: ${methodName}` };
-      }
-      
-      // Check if schema is exposed
-      const config = typeof methodConfig === 'function' ? {} : methodConfig;
-      if (!config.exposeSchema) {
-        throw { code: -32601, message: 'Method schema not available' };
-      }
-      
-      return {
-        name: methodName,
-        schema: config.schema || null,
-        description: config.description || ''
-      };
-    }, {
-      schema: {
-        type: 'object',
-        properties: {
-          method: { type: 'string' }
-        },
-        required: ['method']
-      },
-      description: 'Get schema and description of a specific method',
-      exposeSchema: true
-    });
-    
-    // __rpc.describeAll - Get all methods with public schemas
-    this.addMethod(`${this.#introspectionPrefix}.describeAll`, async (req, context, params) => {
-      const publicMethods = [];
-      
-      for (const [name, methodConfig] of Object.entries(this.#methods)) {
-        // Skip introspection methods
-        if (name.startsWith(this.#introspectionPrefix)) continue;
-        
-        const config = typeof methodConfig === 'function' ? {} : methodConfig;
-        if (config.exposeSchema) {
-          publicMethods.push({
-            name,
-            schema: config.schema || null,
-            description: config.description || ''
-          });
+    this.addMethod(
+      `${this.#introspectionPrefix}.describe`,
+      async (_req, _context, params) => {
+        const methodName = params?.method;
+
+        if (!methodName || typeof methodName !== 'string') {
+          throw {
+            code: -32602,
+            message: 'Invalid params: method name required',
+          };
         }
+
+        // Prevent introspection of __rpc.* methods
+        if (methodName.startsWith(this.#introspectionPrefix)) {
+          throw {
+            code: -32601,
+            message: 'Cannot describe introspection methods',
+          };
+        }
+
+        const methodConfig = this.#methods[methodName];
+        if (!methodConfig) {
+          throw { code: -32601, message: `Method not found: ${methodName}` };
+        }
+
+        // Check if schema is exposed
+        const config = typeof methodConfig === 'function' ? {} : methodConfig;
+        if (!config.exposeSchema) {
+          throw { code: -32601, message: 'Method schema not available' };
+        }
+
+        return {
+          name: methodName,
+          schema: config.schema || null,
+          description: config.description || '',
+        };
+      },
+      {
+        schema: {
+          type: 'object',
+          properties: {
+            method: { type: 'string' },
+          },
+          required: ['method'],
+        },
+        description: 'Get schema and description of a specific method',
+        exposeSchema: true,
       }
-      
-      return publicMethods;
-    }, {
-      description: 'List all methods with public schemas',
-      exposeSchema: true
-    });
-    
+    );
+
+    // __rpc.describeAll - Get all methods with public schemas
+    this.addMethod(
+      `${this.#introspectionPrefix}.describeAll`,
+      async (_req, _context, _params) => {
+        const publicMethods = [];
+
+        for (const [name, methodConfig] of Object.entries(this.#methods)) {
+          // Skip introspection methods
+          if (name.startsWith(this.#introspectionPrefix)) continue;
+
+          const config = typeof methodConfig === 'function' ? {} : methodConfig;
+          if (config.exposeSchema) {
+            publicMethods.push({
+              name,
+              schema: config.schema || null,
+              description: config.description || '',
+            });
+          }
+        }
+
+        return publicMethods;
+      },
+      {
+        description: 'List all methods with public schemas',
+        exposeSchema: true,
+      }
+    );
+
     // __rpc.version - Get toolkit version
-    this.addMethod(`${this.#introspectionPrefix}.version`, async (req, context, params) => {
-      return {
+    this.addMethod(
+      `${this.#introspectionPrefix}.version`,
+      async (_req, _context, _params) => ({
         toolkit: 'rpc-express-toolkit',
         version: pkg.version,
         expressVersion: expressPkg.version,
-        nodeVersion: process.version
-      };
-    }, {
-      description: 'Get RPC toolkit version information',
-      exposeSchema: true
-    });
-    
+        nodeVersion: process.version,
+      }),
+      {
+        description: 'Get RPC toolkit version information',
+        exposeSchema: true,
+      }
+    );
+
     // __rpc.capabilities - Get server capabilities
-    this.addMethod(`${this.#introspectionPrefix}.capabilities`, async (req, context, params) => {
-      return {
+    this.addMethod(
+      `${this.#introspectionPrefix}.capabilities`,
+      async (_req, _context, _params) => ({
         safeMode: this.#options.safeEnabled,
         batch: true,
         introspection: true,
@@ -304,13 +327,16 @@ class RpcEndpoint {
         cors: !!this.#options.cors,
         auth: !!this.#options.auth,
         rateLimit: !!this.#options.rateLimit,
-        methodCount: Object.keys(this.#methods).filter(n => !n.startsWith(this.#introspectionPrefix)).length
-      };
-    }, {
-      description: 'Get server capabilities and configuration',
-      exposeSchema: true
-    });
-    
+        methodCount: Object.keys(this.#methods).filter(
+          (n) => !n.startsWith(this.#introspectionPrefix)
+        ).length,
+      }),
+      {
+        description: 'Get server capabilities and configuration',
+        exposeSchema: true,
+      }
+    );
+
     this.#isInternalRegistration = false;
   }
 
@@ -646,25 +672,35 @@ class RpcEndpoint {
    */
   addMethod(name, handlerOrConfig, optionsOrSchema = null) {
     // Prevent users from registering introspection methods
-    if (name.startsWith(this.#introspectionPrefix) && !this.#isInternalRegistration) {
-      throw new Error(`Method names starting with '${this.#introspectionPrefix}.' are reserved for RPC introspection`);
+    if (
+      name.startsWith(this.#introspectionPrefix) &&
+      !this.#isInternalRegistration
+    ) {
+      throw new Error(
+        `Method names starting with '${this.#introspectionPrefix}.' are reserved for RPC introspection`
+      );
     }
-    
+
     let methodConfig;
-    
+
     if (typeof handlerOrConfig === 'function') {
       // Function handler - optionsOrSchema can be schema (backward compat) or options object
-      if (optionsOrSchema && (optionsOrSchema.schema || optionsOrSchema.exposeSchema || optionsOrSchema.description)) {
+      if (
+        optionsOrSchema &&
+        (optionsOrSchema.schema ||
+          optionsOrSchema.exposeSchema ||
+          optionsOrSchema.description)
+      ) {
         // New format: options object
         methodConfig = {
           handler: handlerOrConfig,
-          ...optionsOrSchema
+          ...optionsOrSchema,
         };
       } else if (optionsOrSchema) {
         // Old format: schema directly
         methodConfig = {
           handler: handlerOrConfig,
-          schema: optionsOrSchema
+          schema: optionsOrSchema,
         };
       } else {
         // Just the handler
@@ -684,7 +720,7 @@ class RpcEndpoint {
       method: name,
       hasSchema: !!config.schema,
       exposeSchema: !!config.exposeSchema,
-      hasDescription: !!config.description
+      hasDescription: !!config.description,
     });
   }
 

@@ -45,7 +45,7 @@ async function main() {
   // 5. Describe all public methods
   console.log('5. __rpc.describeAll():');
   const allMethods = await client.call('__rpc.describeAll');
-  allMethods.forEach(method => {
+  allMethods.forEach((method) => {
     console.log(`  - ${method.name}: ${method.description}`);
   });
   console.log('');
