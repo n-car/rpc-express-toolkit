@@ -12,6 +12,7 @@ class SchemaValidator {
       removeAdditional: options.removeAdditional || false,
       useDefaults: options.useDefaults !== false,
       coerceTypes: options.coerceTypes || false,
+      strict: false, // Allow unknown keywords like exposeSchema in method options
       ...options.ajvOptions,
     });
 
