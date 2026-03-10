@@ -16,6 +16,7 @@ const {
   SchemaBuilder,
 } = require('./validation');
 const BatchHandler = require('./batch');
+const { validateEnvelope } = require('./protocol');
 
 /**
  * Default properties to include in error serialization.
@@ -153,6 +154,10 @@ class RpcEndpoint {
       this.#options.enableIntrospection === true; // Default false
     this.#options.introspectionPrefix =
       this.#options.introspectionPrefix || '__rpc'; // Default __rpc
+    this.#options.maxSerializationDepth =
+      this.#options.maxSerializationDepth || 100;
+    this.#options.maxDeserializationDepth =
+      this.#options.maxDeserializationDepth || 100;
 
     this.#introspectionPrefix = this.#options.introspectionPrefix;
 
@@ -486,44 +491,48 @@ class RpcEndpoint {
    * @param {number} startTime
    */
   async #processSingleRequest(req, res, context, startTime) {
-    const { jsonrpc, method, params, id } = req.body || {};
+    const outcome = await this.executeRequest(req.body || {}, req, res, context, {
+      startTime,
+    });
+
+    if (outcome.notification) {
+      res.status(204).end();
+      return null;
+    }
+
+    this.reply(res, outcome.response);
+    return null;
+  }
+
+  async executeRequest(requestBody, req, res, context, executionMeta = {}) {
+    const { startTime = Date.now(), batchIndex } = executionMeta;
+    const { method, params } = requestBody || {};
+
+    const envelope = validateEnvelope(requestBody || {});
+    const hasId = envelope.hasId === true;
+    const id = envelope.id;
 
     // Log the incoming request
     this.#logger.rpcCall(method, params, id, req);
 
-    // Validate JSON-RPC 2.0 request
-    if (jsonrpc !== '2.0') {
-      return this.reply(res, {
-        id,
-        error: {
-          code: -32600,
-          message: `Invalid Request: 'jsonrpc' must be '2.0'.`,
-        },
-      });
-    }
-
-    if (typeof method !== 'string') {
-      return this.reply(res, {
-        id,
-        error: {
-          code: -32600,
-          message: `Invalid Request: 'method' must be a string.`,
-        },
-      });
+    if (!envelope.valid) {
+      return { notification: false, response: { id: envelope.id, error: envelope.error } };
     }
 
     const methodConfig = this.#methods[method];
     if (!methodConfig) {
-      return this.reply(res, {
-        id,
-        error: { code: -32601, message: `Method "${method}" not found` },
-      });
+      return {
+        notification: !hasId,
+        response: {
+          id,
+          error: { code: -32601, message: `Method "${method}" not found` },
+        },
+      };
     }
 
     const handler =
       typeof methodConfig === 'function' ? methodConfig : methodConfig.handler;
-    const schema =
-      typeof methodConfig === 'object' ? methodConfig.schema : null;
+    const schema = typeof methodConfig === 'object' ? methodConfig.schema : null;
 
     try {
       // Check client's safe options from request headers
@@ -535,21 +544,24 @@ class RpcEndpoint {
         this.#options.safeEnabled &&
         !clientSafeHeader
       ) {
-        return this.reply(res, {
-          id,
-          error: {
-            code: -32600, // Invalid Request
-            message:
-              'RPC Compatibility Error: Server requires safe serialization header but client did not provide it.',
-            data: {
-              serverSafeEnabled: this.#options.safeEnabled,
-              requiredHeader: 'X-RPC-Safe-Enabled',
-              strictMode: true,
-              solution:
-                'Update client to rpc-express-toolkit v4+ or disable server strict mode',
+        return {
+          notification: !hasId,
+          response: {
+            id,
+            error: {
+              code: -32600,
+              message:
+                'RPC Compatibility Error: Server requires safe serialization header but client did not provide it.',
+              data: {
+                serverSafeEnabled: this.#options.safeEnabled,
+                requiredHeader: 'X-RPC-Safe-Enabled',
+                strictMode: true,
+                solution:
+                  'Update client to rpc-express-toolkit v4+ or disable server strict mode',
+              },
             },
           },
-        });
+        };
       }
 
       // Use client's safe options for parameter deserialization
@@ -572,6 +584,7 @@ class RpcEndpoint {
         context,
         id,
         startTime,
+        batchIndex,
       };
 
       // Execute beforeCall middleware
@@ -626,7 +639,10 @@ class RpcEndpoint {
 
       // Convert any BigInt/Date values before JSON-stringifying
       const safeResult = this.serializeBigIntsAndDates(result);
-      this.reply(res, { id, result: safeResult });
+      return {
+        notification: !hasId,
+        response: { id, result: safeResult },
+      };
     } catch (err) {
       const duration = Date.now() - startTime;
       this.#logger.rpcError(method, id, duration, err);
@@ -643,6 +659,7 @@ class RpcEndpoint {
           error: err,
           startTime,
           duration,
+          batchIndex,
         });
       } catch (middlewareError) {
         this.#logger.error('Error middleware failed', {
@@ -650,18 +667,29 @@ class RpcEndpoint {
         });
       }
 
-      this.reply(res, {
-        id,
-        error: {
-          code: err.code || -32603,
-          message: err.message || `Internal error`,
-          ...(err.data && { data: err.data }),
-          error: serializeError(err, true),
+      const errorData = err.data;
+      const normalizedData =
+        batchIndex === undefined
+          ? errorData
+          : errorData && typeof errorData === 'object' && !Array.isArray(errorData)
+          ? { ...errorData, batchIndex }
+          : errorData !== undefined
+          ? { errorData, batchIndex }
+          : { batchIndex };
+
+      return {
+        notification: !hasId,
+        response: {
+          id,
+          error: {
+            code: err.code || -32603,
+            message: err.message || `Internal error`,
+            ...(normalizedData !== undefined && { data: normalizedData }),
+            error: serializeError(err, true),
+          },
         },
-      });
+      };
     }
-    // Ensure explicit return for consistent-return rule
-    return null;
   }
 
   /**
@@ -858,7 +886,11 @@ class RpcEndpoint {
    * Internal serialization method with BigInt and Date warning tracking
    * @private
    */
-  #serializeValue(value, hasBigInt = false, hasDate = false) {
+  #serializeValue(value, hasBigInt = false, hasDate = false, depth = 0, visited = new WeakSet()) {
+    if (depth > this.#options.maxSerializationDepth) {
+      throw new Error('Serialization depth limit exceeded');
+    }
+
     if (typeof value === 'bigint') {
       // Warn if safeEnabled is disabled and we have BigInt
       if (
@@ -896,16 +928,36 @@ class RpcEndpoint {
       return value;
     }
     if (Array.isArray(value)) {
+      if (visited.has(value)) {
+        throw new Error('Circular reference detected during serialization');
+      }
+      visited.add(value);
       // Recurse into arrays - don't pass hasBigInt/hasDate to children
       // Each element should be checked independently for warnings
-      return value.map((v) => this.#serializeValue(v, false, false));
+      return value.map((v) =>
+        this.#serializeValue(v, false, false, depth + 1, visited)
+      );
     }
     if (value && typeof value === 'object') {
+      if (visited.has(value)) {
+        throw new Error('Circular reference detected during serialization');
+      }
+      visited.add(value);
       // Recurse into plain objects - don't pass hasBigInt/hasDate to children
       // Each property should be checked independently for warnings
       const result = {};
       for (const [key, val] of Object.entries(value)) {
-        result[key] = this.#serializeValue(val, false, false);
+        const serialized = this.#serializeValue(val, false, false, depth + 1, visited);
+        if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+          Object.defineProperty(result, key, {
+            value: serialized,
+            enumerable: true,
+            configurable: true,
+            writable: true,
+          });
+        } else {
+          result[key] = serialized;
+        }
       }
       return result;
     }
@@ -954,11 +1006,17 @@ class RpcEndpoint {
    * @param {boolean} [options.safeEnabled] Whether to expect safe prefixes for strings and dates.
    * @returns {any} The re-hydrated value.
    */
-  deserializeBigIntsAndDates(value, options = null) {
+  deserializeBigIntsAndDates(value, options = null, state = null) {
     // Use provided options or fall back to server options
     const safeEnabled = options
       ? options.safeEnabled
       : this.#options.safeEnabled;
+    const depth = state?.depth || 0;
+    const visited = state?.visited || new WeakSet();
+
+    if (depth > this.#options.maxDeserializationDepth) {
+      throw new Error('Deserialization depth limit exceeded');
+    }
 
     // More comprehensive ISO date regex that handles:
     // - UTC: 2023-01-01T12:00:00.000Z
@@ -1001,17 +1059,44 @@ class RpcEndpoint {
 
     // 2. If it's an array, handle each element
     if (Array.isArray(value)) {
-      return value.map((v) => this.deserializeBigIntsAndDates(v, options));
+      if (visited.has(value)) {
+        throw new Error('Circular reference detected during deserialization');
+      }
+      visited.add(value);
+      return value.map((v) =>
+        this.deserializeBigIntsAndDates(v, options, {
+          depth: depth + 1,
+          visited,
+        })
+      );
     }
 
     // 3. If it's a plain object, recurse into each property
     if (value && typeof value === 'object') {
-      return Object.fromEntries(
-        Object.entries(value).map(([key, val]) => [
-          key,
-          this.deserializeBigIntsAndDates(val, options),
-        ])
-      );
+      if (visited.has(value)) {
+        throw new Error('Circular reference detected during deserialization');
+      }
+      visited.add(value);
+
+      const out = {};
+      for (const [key, val] of Object.entries(value)) {
+        const deserialized = this.deserializeBigIntsAndDates(val, options, {
+          depth: depth + 1,
+          visited,
+        });
+
+        if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+          Object.defineProperty(out, key, {
+            value: deserialized,
+            enumerable: true,
+            configurable: true,
+            writable: true,
+          });
+        } else {
+          out[key] = deserialized;
+        }
+      }
+      return out;
     }
 
     // 4. For everything else (number, boolean, null, undefined, etc.), return as-is

@@ -9,7 +9,7 @@ describe('Batch behavior', () => {
   beforeEach(() => {
     app = express();
     app.use(express.json());
-    rpc = new RpcEndpoint(app, {}, { safeEnabled: false });
+    rpc = new RpcEndpoint(app, {}, { safeEnabled: false, strictMode: false });
 
     rpc.addMethod('echo', (req, ctx, params) => params);
     rpc.addMethod('mul', (req, ctx, params) => {
@@ -24,12 +24,12 @@ describe('Batch behavior', () => {
   test('rejects empty batch', async () => {
     const res = await request(app).post('/api').send([]);
     expect(res.status).toBe(200);
-    // Implementation returns a single error object for empty array
-    expect(res.body.error).toBeDefined();
-    expect(res.body.error.code).toBe(-32600);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body[0].error).toBeDefined();
+    expect(res.body[0].error.code).toBe(-32600);
   });
 
-  test('rejects duplicate ids in batch', async () => {
+  test('allows duplicate ids in batch', async () => {
     const res = await request(app)
       .post('/api')
       .send([
@@ -38,23 +38,22 @@ describe('Batch behavior', () => {
       ]);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body[0].error.code).toBe(-32600);
+    expect(res.body).toHaveLength(2);
+    expect(res.body[0].result).toEqual({ a: 1 });
+    expect(res.body[1].result).toEqual({ a: 2 });
   });
 
   test('batch with only notifications returns 204', async () => {
     const res = await request(app)
       .post('/api')
       .send([
-        { jsonrpc: '2.0', method: 'echo', params: { ok: true }, id: null },
+        { jsonrpc: '2.0', method: 'echo', params: { ok: true } },
         { jsonrpc: '2.0', method: 'echo', params: { ok: true } },
       ]);
-    // Second lacks id (undefined) -> notification; first id is null -> notification
-    // Both are notifications => 204
     expect(res.status).toBe(204);
   });
 
   test('deserializes params in batch using header', async () => {
-    // send BigInt-like strings and let server handle them via batch
     const res = await request(app)
       .post('/api')
       .set('X-RPC-Safe-Enabled', 'true')
