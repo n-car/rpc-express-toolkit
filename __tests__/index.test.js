@@ -116,7 +116,7 @@ describe('RpcEndpoint', () => {
         id: 1,
         error: {
           code: -32600,
-          message: "Invalid Request: 'method' must be a string.",
+          message: "Invalid Request: 'method' must be a non-empty string.",
         },
       });
     });

@@ -13,7 +13,7 @@ class BatchHandler {
    * @returns {boolean}
    */
   isBatchRequest(body) {
-    return Array.isArray(body) && body.length > 0;
+    return Array.isArray(body);
   }
 
   /**
@@ -42,22 +42,6 @@ class BatchHandler {
       };
     }
 
-    // Check for duplicate IDs in the batch
-    const ids = batch
-      .map((req) => req.id)
-      .filter((id) => id !== undefined && id !== null);
-    const uniqueIds = new Set(ids);
-
-    if (ids.length !== uniqueIds.size) {
-      return {
-        valid: false,
-        error: {
-          code: -32600,
-          message: 'Invalid Request: Duplicate IDs in batch',
-        },
-      };
-    }
-
     return { valid: true };
   }
 
@@ -81,167 +65,32 @@ class BatchHandler {
       ];
     }
 
-    // Process all requests in parallel
-    const promises = batch.map(async (request, index) => {
-      try {
-        return await this.processSingleRequest(request, req, context, index);
-      } catch (error) {
+    const results = await Promise.all(
+      batch.map(async (request, index) => {
+        const outcome = await this.endpoint.executeRequest(
+          request,
+          req,
+          res,
+          context,
+          {
+            startTime: Date.now(),
+            batchIndex: index,
+          }
+        );
+
+        if (outcome.notification) {
+          return null;
+        }
+
         return {
           jsonrpc: '2.0',
-          id: request.id || null,
-          error: {
-            code: error.code || -32603,
-            message: error.message || 'Internal error',
-            data: { batchIndex: index },
-          },
+          ...outcome.response,
         };
-      }
-    });
-
-    const results = await Promise.all(promises);
+      })
+    );
 
     // Filter out notifications (requests without id)
     return results.filter((result) => result !== null);
-  }
-
-  /**
-   * Process a single request within a batch
-   * @param {Object} request
-   * @param {Object} req
-   * @param {any} context
-   * @param {number} batchIndex
-   * @returns {Promise<Object|null>}
-   */
-  async processSingleRequest(request, req, context, batchIndex) {
-    const { jsonrpc, method, params, id } = request;
-
-    // Validate JSON-RPC 2.0 request structure
-    if (jsonrpc !== '2.0') {
-      return {
-        jsonrpc: '2.0',
-        id: id || null,
-        error: {
-          code: -32600,
-          message: `Invalid Request: 'jsonrpc' must be '2.0'`,
-          data: { batchIndex },
-        },
-      };
-    }
-
-    if (typeof method !== 'string') {
-      return {
-        jsonrpc: '2.0',
-        id: id || null,
-        error: {
-          code: -32600,
-          message: `Invalid Request: 'method' must be a string`,
-          data: { batchIndex },
-        },
-      };
-    }
-
-    const methodConfig = this.endpoint.methods[method];
-    if (!methodConfig) {
-      return {
-        jsonrpc: '2.0',
-        id: id || null,
-        error: {
-          code: -32601,
-          message: `Method "${method}" not found`,
-          data: { batchIndex },
-        },
-      };
-    }
-
-    // Extract handler (support both function and config object)
-    const handler =
-      typeof methodConfig === 'function' ? methodConfig : methodConfig.handler;
-
-    // If no id is provided, this is a notification - don't return response
-    const isNotification = id === undefined || id === null;
-
-    // Determine client safe mode from headers and deserialize params accordingly
-    const clientSafeHeader = req.headers['x-rpc-safe-enabled'];
-    const clientSafeEnabled = clientSafeHeader === 'true';
-    const deserializedParams = params
-      ? this.endpoint.deserializeBigIntsAndDates(params, {
-          safeEnabled: clientSafeEnabled,
-        })
-      : params;
-
-    // Initialize middleware context
-    let middlewareContext = {
-      req,
-      res: null, // No response object for batch items
-      method,
-      params: deserializedParams,
-      context,
-      batchIndex,
-      isNotification,
-    };
-
-    try {
-      // Execute middleware
-      if (this.endpoint.middleware) {
-        middlewareContext = await this.endpoint.middleware.execute(
-          'beforeCall',
-          middlewareContext
-        );
-      }
-
-      // Execute the handler
-      const result = await Promise.resolve(
-        handler(req, context, middlewareContext.params)
-      );
-
-      // Execute after middleware
-      if (this.endpoint.middleware) {
-        middlewareContext.result = result;
-        await this.endpoint.middleware.execute('afterCall', middlewareContext);
-      }
-
-      // For notifications, return null (will be filtered out)
-      if (isNotification) {
-        return null;
-      }
-
-      // Serialize the result
-      const safeResult = this.endpoint.serializeBigIntsAndDates(result);
-
-      return {
-        jsonrpc: '2.0',
-        id,
-        result: safeResult,
-      };
-    } catch (error) {
-      // Execute error middleware
-      if (this.endpoint.middleware) {
-        try {
-          await this.endpoint.middleware.execute('onError', {
-            ...middlewareContext,
-            error,
-            batchIndex,
-          });
-        } catch (middlewareError) {
-          // Ignore middleware errors in error handling
-        }
-      }
-
-      // For notifications, return null even on error
-      if (isNotification) {
-        return null;
-      }
-
-      return {
-        jsonrpc: '2.0',
-        id: id || null,
-        error: {
-          code: error.code || -32603,
-          message: error.message || 'Internal error',
-          data: { batchIndex },
-        },
-      };
-    }
   }
 
   /**
@@ -251,7 +100,7 @@ class BatchHandler {
    */
   getBatchStats(batch) {
     const notifications = batch.filter(
-      (req) => req.id === undefined || req.id === null
+      (req) => !Object.prototype.hasOwnProperty.call(req, 'id')
     ).length;
     const requests = batch.length - notifications;
     const methods = [...new Set(batch.map((req) => req.method))];
