@@ -3,6 +3,11 @@ const express = require('express');
 const expressPkg = require('express/package.json');
 const NestedError = require('nested-error-stacks');
 const pkg = require('../package.json');
+const { RpcClient } = require('rpc-toolkit-js-client');
+
+const rpcClientAssetsPath = path.dirname(
+  require.resolve('rpc-toolkit-js-client')
+);
 
 /** @typedef {import("express").Router} Router */
 /** @typedef {import("express").Request} Request */
@@ -93,7 +98,7 @@ class RpcEndpoint {
    *    The path from which client scripts will be served.
    */
   static serveScripts(router, url = '/vendor/rpc-client') {
-    router.use(url, express.static(path.join(__dirname, 'clients')));
+    router.use(url, express.static(rpcClientAssetsPath));
   }
 
   /** @type {string} */
@@ -1018,9 +1023,6 @@ class RpcEndpoint {
     return value;
   }
 }
-
-// Import the client class
-const RpcClient = require('./clients/rpc-client');
 
 // Export both server and client, plus utilities
 module.exports = RpcEndpoint;

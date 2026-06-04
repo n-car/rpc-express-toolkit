@@ -1,6 +1,6 @@
 {
     "name":  "rpc-express-toolkit",
-    "version":  "4.2.1",
+    "version":  "4.2.2",
     "description":  "Enterprise-ready JSON-RPC 2.0 toolkit for Express.js with simplified APIs, structured logging, middleware system, schema validation, comprehensive BigInt/Date support. JSON middleware validation and explicit configuration.",
     "main":  "src/index.js",
     "types":  "src/index.d.ts",
@@ -96,7 +96,8 @@
                          "ajv":  "^8.12.0",
                          "ajv-formats":  "^2.1.1",
                          "express":  "^4.21.2",
-                         "nested-error-stacks":  "^2.1.1"
+                         "nested-error-stacks":  "^2.1.1",
+                         "rpc-toolkit-js-client":  "https://github.com/n-car/rpc-toolkit-js-client/archive/refs/tags/v1.0.0.tar.gz"
                      },
     "optionalDependencies":  {
                                  "node-fetch":  "^2.7.0"

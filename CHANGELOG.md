@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.2.2] - 2026-06-04
+
+### Changed
+- `RpcClient` is now provided by the shared `rpc-toolkit-js-client` package while remaining exported from `rpc-express-toolkit`.
+- `RpcEndpoint.serveScripts()` now serves browser client assets from the shared JavaScript client package.
+
 ## [4.2.1] - 2025-11-27
 
 ### Fixed
