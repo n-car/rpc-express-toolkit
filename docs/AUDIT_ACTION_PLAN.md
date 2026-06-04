@@ -6,8 +6,9 @@ As of `v4.3.0`, the Express server has closed the P0/P1 protocol-correctness wor
 
 Remaining follow-up:
 - `#10` is still open by design: unsafe mode still performs ambiguous string-to-BigInt/Date coercion for compatibility. Safe Mode remains the recommended wire mode.
-- Client-side traversal hardening belongs in the shared `rpc-toolkit-js-client` package, because `rpc-express-toolkit` now imports that client instead of owning a local copy.
 - Optional phase-2 work remains outside this fix: typed client generation, result schema validation, error schema validation, and explicit codec metadata.
+
+Client-side traversal hardening was completed in `rpc-toolkit-js-client` `v1.1.0`; `rpc-express-toolkit` consumes it from `v4.3.1`.
 
 ## 1) Findings table
 

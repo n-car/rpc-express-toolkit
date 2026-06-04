@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.3.1] - 2026-06-04
+
+### Changed
+- Updated the shared JavaScript client dependency to `rpc-toolkit-js-client` `v1.1.0`.
+
 ## [4.3.0] - 2026-06-04
 
 ### Changed
