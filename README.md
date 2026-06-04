@@ -42,12 +42,16 @@ app.listen(3000);
 ### Client
 
 ```javascript
-const { RpcClient } = require('rpc-express-toolkit');
+const { RpcClient, RpcSafeClient } = require('rpc-express-toolkit');
+
 const client = new RpcClient('http://localhost:3000/api');
 const sum = await client.call('add', { a: 1, b: 2 });
+
+const safeClient = new RpcSafeClient('http://localhost:3000/api');
+await safeClient.notify('add', { a: 0, b: 0 });
 ```
 
-`RpcClient` is re-exported from the shared `rpc-toolkit-js-client` package, so existing Node.js imports from `rpc-express-toolkit` continue to work.
+`RpcClient` and `RpcSafeClient` are re-exported from the shared `rpc-toolkit-js-client` package, so existing Node.js imports from `rpc-express-toolkit` continue to work.
 
 ### Browser Client Assets
 
@@ -66,6 +70,33 @@ Default paths:
 /vendor/rpc-client/rpc-client.min.js
 /vendor/rpc-client/rpc-client.mjs
 /vendor/rpc-client/rpc-client.min.mjs
+```
+
+Classic browser script:
+
+```html
+<script src="/vendor/rpc-client/rpc-client.min.js"></script>
+<script>
+  const client = new RpcToolkitClient.RpcClient('/api');
+  const safeClient = new RpcToolkitClient.RpcSafeClient('/api');
+
+  client.call('add', { a: 1, b: 2 }).then(console.log);
+  safeClient.notify('add', { a: 0, b: 0 });
+</script>
+```
+
+Module script:
+
+```html
+<script type="module">
+  import { RpcClient, RpcSafeClient } from '/vendor/rpc-client/rpc-client.mjs';
+
+  const client = new RpcClient('/api');
+  const safeClient = new RpcSafeClient('/api');
+
+  console.log(await client.call('add', { a: 1, b: 2 }));
+  await safeClient.notify('add', { a: 0, b: 0 });
+</script>
 ```
 
 ### Safe Type Disambiguation (optional)
