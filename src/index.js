@@ -2,8 +2,13 @@ const path = require('path');
 const express = require('express');
 const expressPkg = require('express/package.json');
 const NestedError = require('nested-error-stacks');
+const {
+  RpcClient,
+  RpcError,
+  RpcHttpError,
+  RpcSafeClient,
+} = require('rpc-toolkit-js-client');
 const pkg = require('../package.json');
-const { RpcClient } = require('rpc-toolkit-js-client');
 
 const rpcClientAssetsPath = path.dirname(
   require.resolve('rpc-toolkit-js-client')
@@ -1028,6 +1033,9 @@ class RpcEndpoint {
 module.exports = RpcEndpoint;
 module.exports.RpcEndpoint = RpcEndpoint;
 module.exports.RpcClient = RpcClient;
+module.exports.RpcError = RpcError;
+module.exports.RpcHttpError = RpcHttpError;
+module.exports.RpcSafeClient = RpcSafeClient;
 module.exports.Logger = Logger;
 module.exports.MiddlewareManager = MiddlewareManager;
 module.exports.builtInMiddlewares = builtInMiddlewares;

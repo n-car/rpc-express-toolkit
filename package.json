@@ -1,6 +1,6 @@
 {
     "name":  "rpc-express-toolkit",
-    "version":  "4.2.2",
+    "version":  "4.2.3",
     "description":  "Enterprise-ready JSON-RPC 2.0 toolkit for Express.js with simplified APIs, structured logging, middleware system, schema validation, comprehensive BigInt/Date support. JSON middleware validation and explicit configuration.",
     "main":  "src/index.js",
     "types":  "src/index.d.ts",
@@ -29,10 +29,7 @@
                     "lint":  "eslint src/ examples/",
                     "lint:fix":  "eslint src/ examples/ --fix",
                     "clean":  "node -e \"require(\u0027fs\u0027).existsSync(\u0027dist\u0027) \u0026\u0026 require(\u0027fs\u0027).rmSync(\u0027dist\u0027, {recursive: true})\"",
-                    "build":  "npm run build:minify",
-                    "build:minify":  "npm run build:js \u0026\u0026 npm run build:mjs",
-                    "build:js":  "terser src/clients/rpc-client.js -o src/clients/rpc-client.min.js --compress --mangle --comments false --ecma 2020",
-                    "build:mjs":  "terser src/clients/rpc-client.mjs -o src/clients/rpc-client.min.mjs --compress --mangle --comments false --module --ecma 2020",
+                    "build":  "node -e \"require.resolve(\u0027rpc-toolkit-js-client\u0027)\"",
                     "prepublishOnly":  "npm run build",
                     "precommit":  "npm run lint \u0026\u0026 npm test"
                 },

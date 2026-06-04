@@ -1,5 +1,14 @@
 # Changelog
 
+## [4.2.3] - 2026-06-04
+
+### Changed
+- Removed obsolete local browser client build scripts; browser assets now come only from `rpc-toolkit-js-client`.
+- Type declarations now reference the shared JavaScript client types exported by `rpc-toolkit-js-client`.
+
+### Removed
+- Removed duplicated `src/clients/*` browser client bundles from the Express package.
+
 ## [4.2.2] - 2026-06-04
 
 ### Changed

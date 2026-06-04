@@ -47,6 +47,27 @@ const client = new RpcClient('http://localhost:3000/api');
 const sum = await client.call('add', { a: 1, b: 2 });
 ```
 
+`RpcClient` is re-exported from the shared `rpc-toolkit-js-client` package, so existing Node.js imports from `rpc-express-toolkit` continue to work.
+
+### Browser Client Assets
+
+Serve the shared browser client bundles from the endpoint:
+
+```javascript
+const { RpcEndpoint } = require('rpc-express-toolkit');
+
+RpcEndpoint.serveScripts(app);
+```
+
+Default paths:
+
+```text
+/vendor/rpc-client/rpc-client.js
+/vendor/rpc-client/rpc-client.min.js
+/vendor/rpc-client/rpc-client.mjs
+/vendor/rpc-client/rpc-client.min.mjs
+```
+
 ### Safe Type Disambiguation (optional)
 
 Safe type disambiguation is disabled by default for maximum JSON-RPC 2.0 compatibility. The library can show warnings when BigInt or Date values are serialized in standard mode. Enable safe serialization with `safeEnabled: true` to add safe prefixes (`S:` for strings, `D:` for dates), or suppress warnings with `warnOnUnsafe: false`. See `README_ADVANCED.md#safe-serialization` for details.

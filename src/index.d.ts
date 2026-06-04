@@ -1,6 +1,16 @@
 // Type definitions for rpc-express-toolkit
 
 import type { Router, Request, Response } from 'express';
+import {
+  RpcClient as SharedRpcClient,
+  RpcError as SharedRpcError,
+  RpcHttpError as SharedRpcHttpError,
+  RpcSafeClient as SharedRpcSafeClient
+} from 'rpc-toolkit-js-client';
+import type {
+  RpcBatchRequest as SharedRpcBatchRequest,
+  RpcClientOptions as SharedRpcClientOptions
+} from 'rpc-toolkit-js-client';
 
 /**
  * JSON-RPC handler function type
@@ -123,10 +133,17 @@ interface RpcEndpointOptions {
 /**
  * RPC client configuration options
  */
-interface RpcClientOptions {
-  safeEnabled?: boolean;
-  warnOnUnsafe?: boolean;
-}
+type RpcClientOptions = SharedRpcClientOptions;
+type RpcBatchRequest = SharedRpcBatchRequest;
+type RpcClient = SharedRpcClient;
+type RpcError = SharedRpcError;
+type RpcHttpError = SharedRpcHttpError;
+type RpcSafeClient = SharedRpcSafeClient;
+
+declare const RpcClient: typeof SharedRpcClient;
+declare const RpcError: typeof SharedRpcError;
+declare const RpcHttpError: typeof SharedRpcHttpError;
+declare const RpcSafeClient: typeof SharedRpcSafeClient;
 
 /**
  * Deserialization options for safe prefixes
@@ -225,59 +242,6 @@ declare class RpcEndpoint<C = any> {
 }
 
 /**
- * JSON-RPC 2.0 Client for Node.js environments.
- */
-declare class RpcClient {
-  /**
-   * Client constructor.
-   */
-  constructor(endpoint: string, options?: RpcClientOptions);
-  constructor(endpoint: string, defaultHeaders?: Record<string, string>, options?: RpcClientOptions);
-
-  /**
-   * Make a JSON-RPC call to the server.
-   */
-  call<T = any>(
-    method: string,
-    params?: any,
-    id?: string | number | null,
-    overrideHeaders?: Record<string, string>
-  ): Promise<T>;
-
-  /**
-   * Make a JSON-RPC notification (no response expected).
-   */
-  notify(
-    method: string,
-    params?: any,
-    overrideHeaders?: Record<string, string>
-  ): Promise<void>;
-
-  /**
-   * Make a batch JSON-RPC call.
-   */
-  batch<T = any>(
-    requests: Array<{
-      method: string;
-      params?: any;
-      id?: string | number | null;
-      notification?: boolean;
-    }>,
-    overrideHeaders?: Record<string, string>
-  ): Promise<T[]>;
-
-  /**
-   * Recursively serialize BigInt and Date to JSON-safe string formats.
-   */
-  serializeBigIntsAndDates(value: any): any;
-
-  /**
-   * Recursively deserialize strings representing BigInt and Date.
-   */
-  deserializeBigIntsAndDates(value: any, options?: DeserializationOptions): any;
-}
-
-/**
  * Export types for external use
  */
 export {
@@ -292,9 +256,13 @@ export {
   ValidationConfig,
   RpcEndpointOptions,
   RpcClientOptions,
+  RpcBatchRequest,
   DeserializationOptions,
   RpcEndpoint,
-  RpcClient
+  RpcClient,
+  RpcError,
+  RpcHttpError,
+  RpcSafeClient
 };
 
 /**
@@ -308,6 +276,9 @@ declare const Main: {
   serveScripts(router: Router, url?: string): void;
   RpcEndpoint: typeof RpcEndpoint;
   RpcClient: typeof RpcClient;
+  RpcError: typeof RpcError;
+  RpcHttpError: typeof RpcHttpError;
+  RpcSafeClient: typeof RpcSafeClient;
   Logger: any;
   MiddlewareManager: any;
   builtInMiddlewares: any;
