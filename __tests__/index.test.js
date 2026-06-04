@@ -121,6 +121,48 @@ describe('RpcEndpoint', () => {
       });
     });
 
+    it('should return error for invalid id type', async () => {
+      const response = await request(app)
+        .post('/api')
+        .send({
+          jsonrpc: '2.0',
+          method: 'greet',
+          params: { name: 'World' },
+          id: { bad: true },
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        jsonrpc: '2.0',
+        id: null,
+        error: {
+          code: -32600,
+          message: "Invalid Request: 'id' must be a string, number, or null.",
+        },
+      });
+    });
+
+    it('should return error for invalid params type', async () => {
+      const response = await request(app)
+        .post('/api')
+        .send({
+          jsonrpc: '2.0',
+          method: 'greet',
+          params: 'World',
+          id: 1,
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({
+        jsonrpc: '2.0',
+        id: 1,
+        error: {
+          code: -32600,
+          message: "Invalid Request: 'params' must be an object or array.",
+        },
+      });
+    });
+
     it('should return error for method not found', async () => {
       const response = await request(app)
         .post('/api')
@@ -140,6 +182,19 @@ describe('RpcEndpoint', () => {
           message: 'Method "nonexistent" not found',
         },
       });
+    });
+
+    it('should not respond to notification requests', async () => {
+      const response = await request(app)
+        .post('/api')
+        .send({
+          jsonrpc: '2.0',
+          method: 'greet',
+          params: { name: 'World' },
+        });
+
+      expect(response.status).toBe(204);
+      expect(response.text).toBe('');
     });
 
     it('should pass context to method handlers', async () => {

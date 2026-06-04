@@ -54,9 +54,14 @@ class Logger {
    */
   safeStringify(obj) {
     try {
+      const seen = new WeakSet();
       return JSON.stringify(obj, (key, value) => {
         if (typeof value === 'bigint') return `${value.toString()}n`;
         if (value instanceof Date) return value.toISOString();
+        if (value && typeof value === 'object') {
+          if (seen.has(value)) return '[Circular]';
+          seen.add(value);
+        }
         return value;
       });
     } catch (e) {
@@ -156,7 +161,8 @@ class Logger {
       duration: `${duration}ms`,
       error: error.message,
       code: error.code,
-      stack: error.stack,
+      stack:
+        this.levels[this.level] >= this.levels.debug ? error.stack : undefined,
     });
   }
 
@@ -175,14 +181,19 @@ class Logger {
       'secret',
       'auth',
       'authorization',
+      'credential',
+      'cookie',
+      'session',
     ];
-    const sanitized = Array.isArray(params) ? [...params] : { ...params };
+    const seen = new WeakSet();
 
     const sanitizeObj = (input) => {
       if (typeof input !== 'object' || input === null) return input;
+      if (seen.has(input)) return '[Circular]';
 
+      seen.add(input);
       const output = Array.isArray(input) ? [] : {};
-      for (const [key, value] of Object.entries(input)) {
+      Object.entries(input).forEach(([key, value]) => {
         const isSensitive = sensitiveKeys.some((sensitive) =>
           key.toLowerCase().includes(sensitive)
         );
@@ -193,11 +204,12 @@ class Logger {
         } else {
           output[key] = value;
         }
-      }
+      });
+      seen.delete(input);
       return output;
     };
 
-    return sanitizeObj(sanitized);
+    return sanitizeObj(params);
   }
 }
 

@@ -1,22 +1,31 @@
 # RPC Express Toolkit — Correctness & Protocol Action Plan
 
-## 1) Verified findings table
+## 0) Current implementation status
+
+As of `v4.3.0`, the Express server has closed the P0/P1 protocol-correctness work tracked here: notification semantics, request-envelope validation, batch/single parity, strict Safe Mode parity, schema validation in batches, batch error data preservation, server-side traversal hardening, and logging hardening.
+
+Remaining follow-up:
+- `#10` is still open by design: unsafe mode still performs ambiguous string-to-BigInt/Date coercion for compatibility. Safe Mode remains the recommended wire mode.
+- Client-side traversal hardening belongs in the shared `rpc-toolkit-js-client` package, because `rpc-express-toolkit` now imports that client instead of owning a local copy.
+- Optional phase-2 work remains outside this fix: typed client generation, result schema validation, error schema validation, and explicit codec metadata.
+
+## 1) Findings table
 
 | # | Finding | Status | Evidence (file/function) |
 |---|---|---|---|
-| 1 | Single-request notifications incorrectly produce a response | VERIFIED | `RpcEndpoint.#processSingleRequest()` always calls `reply()`; `reply()` maps `id === undefined` to `null`, so notification emits response. (`src/index.js`: `#processSingleRequest`, `reply`) |
-| 2 | Batch treats `id: null` as notification | VERIFIED | `BatchHandler.processSingleRequest()` sets `isNotification = id === undefined || id === null`. (`src/batch.js`) |
-| 3 | `id` type is not validated | VERIFIED | Single and batch envelope checks validate only `jsonrpc` + `method`; no `id` type guard in `#processSingleRequest` or `processSingleRequest`. (`src/index.js`, `src/batch.js`) |
-| 4 | `params` type is not validated at envelope level | VERIFIED | No guard that `params` is object/array when present in either path. (`src/index.js`, `src/batch.js`) |
-| 5 | Duplicate-id rejection in batch is non-spec behavior | VERIFIED | `validateBatch()` rejects duplicate ids (`Invalid Request: Duplicate IDs in batch`). (`src/batch.js`) |
-| 6 | Empty batch path is unreachable | VERIFIED | Route classifies batch only via `isBatchRequest(body)` where body must be array and `length > 0`; empty array falls through single handler. (`src/index.js`, `src/batch.js`) |
-| 7 | Batch skips schema validation | VERIFIED | Batch executes middleware + handler but never reads method schema nor calls validator hooks. (`src/batch.js`) |
-| 8 | Batch skips strict safe-mode enforcement | VERIFIED | Strict-mode/header enforcement exists only in single path (`#processSingleRequest`); absent in batch path. (`src/index.js`, `src/batch.js`) |
-| 9 | Batch error payload drops original `err.data` | VERIFIED | Batch catch emits `data: { batchIndex }` and overwrites method error data. (`src/batch.js`) |
-| 10 | Unsafe-mode deserialization ambiguously converts strings into BigInt/Date | VERIFIED | `deserializeBigIntsAndDates()` converts `/^-?\d+n$/` always and ISO datetime when unsafe mode. (`src/index.js`) |
-| 11 | Serializer/deserializer has no cycle protection | VERIFIED | Recursive traversal for arrays/objects in `#serializeValue()` and `deserializeBigIntsAndDates()` without `WeakSet`/depth limit. (`src/index.js`) |
-| 12 | Serializer vulnerable to prototype pollution assignment | VERIFIED | Serializer builds `{}` and assigns entries directly; `__proto__` key assignment can mutate prototype of result object. (`src/index.js`) |
-| 13 | Logging/sanitization may expose too much internal data | PARTIALLY VERIFIED | Error logs include stack traces (`Logger.rpcError()`, endpoint catch). Param sanitization is heuristic key matching; non-matching sensitive fields may leak. (`src/logger.js`, `src/index.js`) |
+| 1 | Single-request notifications incorrectly produce a response | FIXED in `v4.3.0` | `RpcEndpoint.#processSingleRequest()` now detects missing `id` as notification and returns `204` without a JSON-RPC payload. (`src/index.js`, `src/protocol.js`) |
+| 2 | Batch treats `id: null` as notification | FIXED in `v4.3.0` | Batch notification detection is based on `id` member presence; `id:null` remains response-bearing. (`src/batch.js`, `src/protocol.js`) |
+| 3 | `id` type is not validated | FIXED in `v4.3.0` | Shared `validateEnvelope()` rejects invalid id types with `-32600`. (`src/protocol.js`) |
+| 4 | `params` type is not validated at envelope level | FIXED in `v4.3.0` | Shared `validateEnvelope()` rejects scalar `params` values with `-32600`. (`src/protocol.js`) |
+| 5 | Duplicate-id rejection in batch is non-spec behavior | FIXED in `v4.3.0` | Duplicate-id rejection was removed; duplicate ids are processed as normal batch items. (`src/batch.js`) |
+| 6 | Empty batch path is unreachable | FIXED in `v4.3.0` | `isBatchRequest()` now routes every array to the batch handler; empty batches return one invalid request error object. (`src/batch.js`, `src/index.js`) |
+| 7 | Batch skips schema validation | FIXED in `v4.3.0` | Batch calls now run schema validation plus before/after validation middleware hooks. (`src/batch.js`) |
+| 8 | Batch skips strict safe-mode enforcement | FIXED in `v4.3.0` | Batch calls now enforce the same strict Safe Mode header rule as single calls. (`src/batch.js`) |
+| 9 | Batch error payload drops original `err.data` | FIXED in `v4.3.0` | `addBatchIndex()` preserves existing error data and adds `batchIndex`. (`src/protocol.js`, `src/batch.js`) |
+| 10 | Unsafe-mode deserialization ambiguously converts strings into BigInt/Date | OPEN | `deserializeBigIntsAndDates()` still keeps legacy unsafe-mode coercion; Safe Mode remains the recommended behavior. (`src/index.js`) |
+| 11 | Serializer/deserializer has no cycle protection | FIXED in `v4.3.0` server-side | Server traversal now uses `WeakSet` and configurable depth limits. (`src/index.js`) |
+| 12 | Serializer vulnerable to prototype pollution assignment | FIXED in `v4.3.0` server-side | Serializer writes own properties via `Object.defineProperty()`, keeping `__proto__` inert. (`src/index.js`) |
+| 13 | Logging/sanitization may expose too much internal data | FIXED in `v4.3.0` server-side | Logger handles circular values, redacts additional credential-like keys, and emits stack traces only in debug/trace. (`src/logger.js`) |
 
 ## 2) Severity triage table
 

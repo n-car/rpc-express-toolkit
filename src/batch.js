@@ -2,6 +2,8 @@
  * @file BatchHandler Class
  * @description Handles JSON-RPC 2.0 batch requests processing multiple requests in a single call
  */
+const { addBatchIndex, hasOwn, validateEnvelope } = require('./protocol');
+
 class BatchHandler {
   constructor(endpoint) {
     this.endpoint = endpoint;
@@ -13,7 +15,7 @@ class BatchHandler {
    * @returns {boolean}
    */
   isBatchRequest(body) {
-    return Array.isArray(body) && body.length > 0;
+    return Array.isArray(body);
   }
 
   /**
@@ -42,22 +44,6 @@ class BatchHandler {
       };
     }
 
-    // Check for duplicate IDs in the batch
-    const ids = batch
-      .map((req) => req.id)
-      .filter((id) => id !== undefined && id !== null);
-    const uniqueIds = new Set(ids);
-
-    if (ids.length !== uniqueIds.size) {
-      return {
-        valid: false,
-        error: {
-          code: -32600,
-          message: 'Invalid Request: Duplicate IDs in batch',
-        },
-      };
-    }
-
     return { valid: true };
   }
 
@@ -72,13 +58,11 @@ class BatchHandler {
   async processBatch(batch, req, res, context) {
     const validation = this.validateBatch(batch);
     if (!validation.valid) {
-      return [
-        {
-          jsonrpc: '2.0',
-          id: null,
-          error: validation.error,
-        },
-      ];
+      return {
+        jsonrpc: '2.0',
+        id: null,
+        error: validation.error,
+      };
     }
 
     // Process all requests in parallel
@@ -88,11 +72,11 @@ class BatchHandler {
       } catch (error) {
         return {
           jsonrpc: '2.0',
-          id: request.id || null,
+          id: request && hasOwn(request, 'id') ? request.id : null,
           error: {
             code: error.code || -32603,
             message: error.message || 'Internal error',
-            data: { batchIndex: index },
+            data: addBatchIndex(error, index).data,
           },
         };
       }
@@ -113,38 +97,26 @@ class BatchHandler {
    * @returns {Promise<Object|null>}
    */
   async processSingleRequest(request, req, context, batchIndex) {
-    const { jsonrpc, method, params, id } = request;
+    const { method, params, id } = request || {};
+    const envelope = validateEnvelope(request);
 
-    // Validate JSON-RPC 2.0 request structure
-    if (jsonrpc !== '2.0') {
+    if (!envelope.valid) {
       return {
         jsonrpc: '2.0',
-        id: id || null,
-        error: {
-          code: -32600,
-          message: `Invalid Request: 'jsonrpc' must be '2.0'`,
-          data: { batchIndex },
-        },
-      };
-    }
-
-    if (typeof method !== 'string') {
-      return {
-        jsonrpc: '2.0',
-        id: id || null,
-        error: {
-          code: -32600,
-          message: `Invalid Request: 'method' must be a string`,
-          data: { batchIndex },
-        },
+        id: envelope.responseId,
+        error: addBatchIndex(envelope.error, batchIndex),
       };
     }
 
     const methodConfig = this.endpoint.methods[method];
     if (!methodConfig) {
+      if (envelope.isNotification) {
+        return null;
+      }
+
       return {
         jsonrpc: '2.0',
-        id: id || null,
+        id,
         error: {
           code: -32601,
           message: `Method "${method}" not found`,
@@ -156,14 +128,44 @@ class BatchHandler {
     // Extract handler (support both function and config object)
     const handler =
       typeof methodConfig === 'function' ? methodConfig : methodConfig.handler;
+    const schema =
+      typeof methodConfig === 'object' ? methodConfig.schema : null;
 
     // If no id is provided, this is a notification - don't return response
-    const isNotification = id === undefined || id === null;
+    const isNotification = !envelope.hasId;
 
     // Determine client safe mode from headers and deserialize params accordingly
     const clientSafeHeader = req.headers['x-rpc-safe-enabled'];
+    if (
+      this.endpoint.options.strictMode &&
+      this.endpoint.options.safeEnabled &&
+      !clientSafeHeader
+    ) {
+      if (isNotification) {
+        return null;
+      }
+
+      return {
+        jsonrpc: '2.0',
+        id,
+        error: {
+          code: -32600,
+          message:
+            'RPC Compatibility Error: Server requires safe serialization header but client did not provide it.',
+          data: {
+            serverSafeEnabled: this.endpoint.options.safeEnabled,
+            requiredHeader: 'X-RPC-Safe-Enabled',
+            strictMode: true,
+            solution:
+              'Update client to rpc-express-toolkit v4+ or disable server strict mode',
+            batchIndex,
+          },
+        },
+      };
+    }
+
     const clientSafeEnabled = clientSafeHeader === 'true';
-    const deserializedParams = params
+    const deserializedParams = hasOwn(request, 'params')
       ? this.endpoint.deserializeBigIntsAndDates(params, {
           safeEnabled: clientSafeEnabled,
         })
@@ -187,6 +189,41 @@ class BatchHandler {
           'beforeCall',
           middlewareContext
         );
+      }
+
+      if (schema) {
+        if (this.endpoint.middleware) {
+          middlewareContext = await this.endpoint.middleware.execute(
+            'beforeValidation',
+            middlewareContext
+          );
+        }
+
+        const validation = this.endpoint.validator.validate(
+          middlewareContext.params,
+          schema
+        );
+        if (!validation.valid) {
+          const error = new Error('Validation failed');
+          error.code = -32602;
+          error.data = {
+            validationErrors: validation.errors.map((err) => ({
+              field: err.instancePath || err.schemaPath,
+              message: err.message,
+              value: err.data,
+            })),
+          };
+          throw error;
+        }
+
+        middlewareContext.params = validation.data;
+
+        if (this.endpoint.middleware) {
+          middlewareContext = await this.endpoint.middleware.execute(
+            'afterValidation',
+            middlewareContext
+          );
+        }
       }
 
       // Execute the handler
@@ -234,11 +271,11 @@ class BatchHandler {
 
       return {
         jsonrpc: '2.0',
-        id: id || null,
+        id,
         error: {
           code: error.code || -32603,
           message: error.message || 'Internal error',
-          data: { batchIndex },
+          data: addBatchIndex(error, batchIndex).data,
         },
       };
     }
@@ -250,9 +287,7 @@ class BatchHandler {
    * @returns {Object}
    */
   getBatchStats(batch) {
-    const notifications = batch.filter(
-      (req) => req.id === undefined || req.id === null
-    ).length;
+    const notifications = batch.filter((req) => !hasOwn(req, 'id')).length;
     const requests = batch.length - notifications;
     const methods = [...new Set(batch.map((req) => req.method))];
 

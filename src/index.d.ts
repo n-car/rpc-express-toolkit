@@ -116,6 +116,8 @@ interface RpcEndpointOptions {
   logging?: LoggingConfig;
   warnOnUnsafe?: boolean;
   strictMode?: boolean;
+  maxSerializationDepth?: number;
+  maxDeserializationDepth?: number;
   autoJsonMiddleware?: boolean;
   jsonOptions?: {
     limit?: string;
