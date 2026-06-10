@@ -25,3 +25,7 @@ const client = new RpcSafeClient('http://localhost:3000/api');
 The deprecated `createSafeEndpoint()` and `createSafeClient()` factory functions are still exported for compatibility.
 
 Under the hood this package simply exports from `rpc-express-toolkit/safe` and depends on `rpc-express-toolkit`.
+
+## License
+
+MIT. See [LICENSE](../../LICENSE).
