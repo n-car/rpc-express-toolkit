@@ -36,7 +36,7 @@ Enterprise-ready JSON-RPC 2.0 toolkit for Express.js applications with structure
 
 ### Enterprise Features
 - Structured logging with configurable levels.
-- Extensible middleware system with built-ins (rate limit, CORS, auth, timing, whitelist).
+- Extensible middleware system with authentication, method whitelisting, rate limiting, CORS, timing, and custom authorization hooks.
 - JSON Schema validation via Ajv with helper builder.
 - Health and metrics endpoints.
 
@@ -62,7 +62,7 @@ const rpc = new RpcEndpoint(app, context, {
   logging: { level: 'info' },
   cors: { origin: ['http://localhost:3000'], credentials: true },
   rateLimit: { windowMs: 15 * 60 * 1000, max: 100 },
-  auth: { verify: (req) => Boolean(req.headers.authorization) },
+  auth: (req) => Boolean(req.headers.authorization),
   methodWhitelist: ['add', 'subtract', 'getUser'],
   validation: { coerceTypes: true, removeAdditional: true },
   safeEnabled: false,
@@ -132,7 +132,7 @@ Hooks: `beforeCall`, `beforeValidation`, `afterValidation`, `afterCall`, `onErro
 
 ```javascript
 rpc.use('beforeCall', async (ctx) => {
-  // e.g., auth or mutate params
+  // e.g., inspect req, method, params, or mutate params
   return ctx;
 });
 ```
@@ -143,6 +143,39 @@ Built-ins:
 - `cors({ origin, methods, headers })`
 - `timing()`
 - `methodWhitelist(["allowedMethod"])`
+
+Authentication uses `auth: async (req) => boolean` in the endpoint options. Returning a truthy value allows the call; returning a falsy value rejects it with JSON-RPC error `-32001` and message `Authentication required`.
+
+`methodWhitelist` is a simple method-level restriction mechanism. It rejects calls to registered methods that are not in the whitelist, but it is not a declarative RBAC, roles, scopes, or permission framework.
+
+#### Custom Authorization
+
+Use `beforeCall` middleware for project-specific authorization rules:
+
+```javascript
+rpc.use('beforeCall', async (ctx) => {
+  const user = await authenticate(ctx.req);
+
+  if (!user) {
+    const error = new Error('Authentication required');
+    error.code = -32001;
+    throw error;
+  }
+
+  if (ctx.method.startsWith('admin.') && !user.roles.includes('admin')) {
+    const error = new Error('Forbidden');
+    error.code = -32003;
+    throw error;
+  }
+
+  return {
+    ...ctx,
+    user,
+  };
+});
+```
+
+Middleware can inspect `ctx.method`, `ctx.params`, `ctx.req`, `ctx.res`, and the application context in `ctx.context`. This enables project-specific authorization rules without forcing a specific auth provider, identity model, roles format, or scopes model.
 
 ### Structured Logging
 
@@ -197,7 +230,8 @@ npm run lint
 
 ### Security & Performance
 
-- Use `auth` and `methodWhitelist` to restrict access.
+- Use authentication middleware and `methodWhitelist` for basic access restrictions.
+- Implement project-specific authorization with middleware hooks when you need roles, scopes, or other permission checks.
 - Enable `rateLimit` to mitigate abuse.
 - Avoid logging sensitive data; the logger sanitizes common keys.
 

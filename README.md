@@ -112,6 +112,31 @@ Safe type disambiguation is disabled by default for maximum JSON-RPC 2.0 compati
 - `client.batch([...])`: batch.
 - `client.notify(method, params?)`: notification.
 
+## Authentication And Method Restrictions
+
+Authentication is supported through the built-in `auth` middleware. The `auth` option is a function that receives the Express request. Returning a truthy value allows the RPC call; returning a falsy value rejects it with JSON-RPC error `-32001` and message `Authentication required`. Throwing also rejects the call and returns a JSON-RPC error based on the thrown error.
+
+```js
+const rpc = new RpcEndpoint(app, context, {
+  auth: async (req) => {
+    const token = req.headers.authorization;
+    return token === 'Bearer secret-token';
+  },
+});
+
+rpc.addMethod('ping', () => 'pong');
+```
+
+For simple method-level restriction, use `methodWhitelist`:
+
+```js
+const rpc = new RpcEndpoint(app, context, {
+  methodWhitelist: ['ping', 'status.read'],
+});
+```
+
+Calls to methods outside the whitelist are rejected. This is a basic method restriction mechanism, not a complete role or permission system. Project-specific authorization rules can be implemented with middleware hooks such as `beforeCall`; see `README_ADVANCED.md`.
+
 ### Safe Import (opt-in)
 
 [![npm (proxy)](https://img.shields.io/npm/v/rpc-express-toolkit-safe.svg)](https://www.npmjs.com/package/rpc-express-toolkit-safe)
@@ -122,16 +147,16 @@ When you control both client and server and want safer type round-trips, import 
 ```js
 // Server (safe preset)
 const express = require('express');
-const { createSafeEndpoint } = require('rpc-express-toolkit/safe');
+const { RpcSafeEndpoint } = require('rpc-express-toolkit/safe');
 
 const app = express();
 app.use(express.json());
 
-const rpc = createSafeEndpoint(app, {}, { endpoint: '/api' /* strictMode: true by default */ });
+const rpc = new RpcSafeEndpoint(app, {}, { endpoint: '/api' /* strictMode: true by default */ });
 
 // Client (safe preset)
-const { createSafeClient } = require('rpc-express-toolkit/safe');
-const client = createSafeClient('http://localhost:3000/api');
+const { RpcSafeClient } = require('rpc-express-toolkit/safe');
+const client = new RpcSafeClient('http://localhost:3000/api');
 ```
 
 This keeps JSON-RPC 2.0 compliance as default for the main entrypoint, while offering a convenient safe-mode import for projects that prefer explicit type disambiguation.
@@ -147,14 +172,14 @@ npm install rpc-express-toolkit-safe
 ```js
 // Server
 const express = require('express');
-const { createSafeEndpoint } = require('rpc-express-toolkit-safe');
+const { RpcSafeEndpoint } = require('rpc-express-toolkit-safe');
 const app = express();
 app.use(express.json());
-const rpc = createSafeEndpoint(app, {}, { endpoint: '/api' });
+const rpc = new RpcSafeEndpoint(app, {}, { endpoint: '/api' });
 
 // Client
-const { createSafeClient } = require('rpc-express-toolkit-safe');
-const client = createSafeClient('http://localhost:3000/api');
+const { RpcSafeClient } = require('rpc-express-toolkit-safe');
+const client = new RpcSafeClient('http://localhost:3000/api');
 ```
 
 ## Introspection Methods
@@ -193,6 +218,8 @@ rpc.addMethod('add', async (req, ctx, params) => {
 const methods = await client.call('__rpc.listMethods');
 const addInfo = await client.call('__rpc.describe', { method: 'add' });
 ```
+
+In `__rpc.capabilities`, `auth` is a boolean indicating whether authentication middleware is configured. It does not expose roles, scopes, or permission rules.
 
 **Note:** The introspection prefix is configurable via `introspectionPrefix` option (default: `__rpc`). User methods starting with this prefix are rejected to prevent conflicts.
 

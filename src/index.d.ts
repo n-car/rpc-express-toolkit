@@ -83,12 +83,9 @@ interface RateLimitConfig {
 }
 
 /**
- * Authentication configuration
+ * Authentication verifier. Return a truthy value to allow the call.
  */
-interface AuthConfig {
-  required?: boolean;
-  verify?: (req: Request) => boolean | Promise<boolean>;
-}
+type AuthConfig = (req: Request) => boolean | Promise<boolean>;
 
 /**
  * Schema validation configuration

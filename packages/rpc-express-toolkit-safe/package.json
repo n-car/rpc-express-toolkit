@@ -1,6 +1,6 @@
 {
     "name":  "rpc-express-toolkit-safe",
-    "version":  "4.1.0",
+    "version":  "4.3.2",
     "description":  "Safe preset wrapper for rpc-express-toolkit (safeEnabled defaults to true).",
     "license":  "MIT",
     "main":  "index.js",
@@ -20,9 +20,9 @@
                      "validation"
                  ],
     "peerDependencies":  {
-                             "rpc-express-toolkit":  "\u003e=4.1.0"
+                             "rpc-express-toolkit":  "^4.3.2"
                          },
     "dependencies":  {
-                         "rpc-express-toolkit":  "\u003e=4.1.0"
+                         "rpc-express-toolkit":  "^4.3.2"
                      }
 }

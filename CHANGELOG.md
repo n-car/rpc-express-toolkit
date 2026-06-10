@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.3.2] - 2026-06-10
+
+### Changed
+- Clarified authentication, method whitelisting, and custom authorization guidance.
+- Updated Safe preset documentation to prefer `RpcSafeEndpoint` and `RpcSafeClient`.
+- Aligned the `rpc-express-toolkit-safe` proxy package with the main package version.
+
+### Fixed
+- Corrected TypeScript declarations for the `auth` endpoint option.
+
 ## [4.3.1] - 2026-06-04
 
 ### Changed
