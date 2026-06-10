@@ -161,6 +161,49 @@ describe('Batch behavior', () => {
     });
   });
 
+  test('serializes safe domain error data in batch', async () => {
+    const safeApp = express();
+    safeApp.use(express.json());
+    const safeRpc = new RpcEndpoint(safeApp, {}, {
+      safeEnabled: true,
+      strictMode: true,
+    });
+
+    safeRpc.addMethod('domainError', () => {
+      const error = new Error('Domain failure');
+      error.code = -32042;
+      error.data = {
+        reason: 'bad-domain',
+        markerString: 'S:literal',
+        dateValue: new Date('2026-06-10T12:34:56.000Z'),
+        bigintValue: 9007199254740993n,
+        bigintLikeString: '9007199254740993n',
+      };
+      throw error;
+    });
+
+    const res = await request(safeApp)
+      .post('/api')
+      .set('X-RPC-Safe-Enabled', 'true')
+      .send([
+        { jsonrpc: '2.0', method: 'domainError', params: {}, id: 1 },
+      ]);
+
+    expect(res.status).toBe(200);
+    expect(res.body[0].error).toMatchObject({
+      code: -32042,
+      message: 'Domain failure',
+      data: {
+        reason: 'S:bad-domain',
+        markerString: 'S:S:literal',
+        dateValue: 'D:2026-06-10T12:34:56.000Z',
+        bigintValue: '9007199254740993n',
+        bigintLikeString: 'S:9007199254740993n',
+        batchIndex: 0,
+      },
+    });
+  });
+
   test('enforces strict safe mode in batch', async () => {
     const strictApp = express();
     strictApp.use(express.json());

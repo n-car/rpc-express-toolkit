@@ -57,6 +57,51 @@ describe('Safe Classes', () => {
       expect(response.headers['x-rpc-safe-enabled']).toBe('false');
       expect(response.body.result).toEqual({ value: 'test' });
     });
+
+    it('should serialize error.data with safe markers', async () => {
+      const app = express();
+      app.use(express.json());
+      const rpc = new RpcSafeEndpoint(app, {}, { endpoint: '/api' });
+
+      rpc.addMethod('domainError', () => {
+        const error = new Error('Domain failure');
+        error.code = -32042;
+        error.stack = undefined;
+        error.data = {
+          reason: 'bad-domain',
+          markerString: 'S:literal',
+          dateString: 'D:literal',
+          dateValue: new Date('2026-06-10T12:34:56.000Z'),
+          bigintValue: 9007199254740993n,
+          bigintLikeString: '9007199254740993n',
+        };
+        throw error;
+      });
+
+      const response = await request(app)
+        .post('/api')
+        .set('X-RPC-Safe-Enabled', 'true')
+        .send({
+          jsonrpc: '2.0',
+          method: 'domainError',
+          id: 1,
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.headers['x-rpc-safe-enabled']).toBe('true');
+      expect(response.body.error).toMatchObject({
+        code: -32042,
+        message: 'Domain failure',
+        data: {
+          reason: 'S:bad-domain',
+          markerString: 'S:S:literal',
+          dateString: 'S:D:literal',
+          dateValue: 'D:2026-06-10T12:34:56.000Z',
+          bigintValue: '9007199254740993n',
+          bigintLikeString: 'S:9007199254740993n',
+        },
+      });
+    });
   });
 
   describe('RpcSafeClient', () => {

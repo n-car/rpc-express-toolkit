@@ -675,12 +675,17 @@ class RpcEndpoint {
         return null;
       }
 
+      const errorData =
+        hasOwn(err, 'data') && err.data !== undefined
+          ? this.serializeBigIntsAndDates(err.data)
+          : undefined;
+
       this.reply(res, {
         id,
         error: {
           code: err.code || -32603,
           message: err.message || `Internal error`,
-          ...(err.data && { data: err.data }),
+          ...(errorData !== undefined && { data: errorData }),
           error: serializeError(err, true),
         },
       });
