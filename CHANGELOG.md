@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.3.5] - 2026-06-11
+
+### Changed
+- Updated `rpc-toolkit-js-client` to the npm-published `^1.1.2` package.
+
 ## [4.3.2] - 2026-06-10
 
 ### Changed
