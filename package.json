@@ -1,6 +1,6 @@
 {
     "name":  "rpc-express-toolkit",
-    "version":  "4.3.3",
+    "version":  "4.3.4",
     "description":  "JSON-RPC 2.0 toolkit for Express.js with simplified APIs, structured logging, middleware, schema validation, batch support, and optional Safe Mode.",
     "main":  "src/index.js",
     "types":  "src/index.d.ts",
