@@ -1,7 +1,7 @@
 {
     "name":  "rpc-express-toolkit",
     "version":  "4.3.3",
-    "description":  "Enterprise-ready JSON-RPC 2.0 toolkit for Express.js with simplified APIs, structured logging, middleware system, schema validation, comprehensive BigInt/Date support. JSON middleware validation and explicit configuration.",
+    "description":  "JSON-RPC 2.0 toolkit for Express.js with simplified APIs, structured logging, middleware, schema validation, batch support, and optional Safe Mode.",
     "main":  "src/index.js",
     "types":  "src/index.d.ts",
     "exports":  {
@@ -52,7 +52,6 @@
                      "ajv",
                      "bigint",
                      "date",
-                     "enterprise",
                      "nodejs",
                      "node",
                      "browser",
