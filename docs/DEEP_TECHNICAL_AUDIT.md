@@ -1,5 +1,7 @@
 # Deep Technical Audit — rpc-express-toolkit
 
+Historical note: this audit records findings from the pre-`v4.3.0` implementation review. The P0/P1 protocol and batch-parity findings listed below were fixed in `v4.3.0`; see [`AUDIT_ACTION_PLAN.md`](AUDIT_ACTION_PLAN.md) for the current status table and remaining compatibility-sensitive follow-up.
+
 This audit focuses only on correctness, edge cases, and protocol consistency. It is based on direct code inspection and local test execution.
 
 ## 1) JSON-RPC 2.0 compliance findings
