@@ -9,6 +9,13 @@
 
 JSON-RPC 2.0 toolkit for Express.js with simplified APIs, middleware, schema validation, batch support, and optional Safe Mode type preservation.
 
+## Which Package Should I Use?
+
+- Use `rpc-express-toolkit` if you are building a JSON-RPC endpoint on Express.
+- Use [`rpc-node-toolkit`](https://github.com/n-car/rpc-node-toolkit) if you want framework-agnostic Node.js or plain `node:http`.
+- Use [`rpc-toolkit-js-client`](https://github.com/n-car/rpc-toolkit-js-client) if you only need a browser or Node.js client.
+- Use [`rpc-toolkit`](https://github.com/n-car/rpc-toolkit) as the ecosystem hub and compatibility reference.
+
 ## Quick Start
 
 ### Installation
