@@ -6,6 +6,7 @@
 [![npm version](https://img.shields.io/npm/v/rpc-express-toolkit.svg)](https://www.npmjs.com/package/rpc-express-toolkit)
 [![npm downloads](https://img.shields.io/npm/dm/rpc-express-toolkit.svg)](https://www.npmjs.com/package/rpc-express-toolkit)
 [![node](https://img.shields.io/node/v/rpc-express-toolkit.svg)](https://www.npmjs.com/package/rpc-express-toolkit)
+[![Status](https://img.shields.io/badge/status-stable-green.svg)](https://github.com/n-car/rpc-express-toolkit/releases)
 
 JSON-RPC 2.0 toolkit for Express.js with simplified APIs, middleware, schema validation, batch support, and optional Safe Mode type preservation.
 
