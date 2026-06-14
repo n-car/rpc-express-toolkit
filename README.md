@@ -150,7 +150,7 @@ Calls to methods outside the whitelist are rejected. This is a basic method rest
 [![npm (proxy)](https://img.shields.io/npm/v/rpc-express-toolkit-safe.svg)](https://www.npmjs.com/package/rpc-express-toolkit-safe)
 [![safe preset](https://img.shields.io/badge/safe%20preset-available-blue)](#safe-import-opt-in)
 
-When you control both client and server and want safer type round-trips, import the safe preset. It enables safe serialization by default (and strict mode on the server):
+When you control both client and server and want safer type round-trips, import the built-in safe preset from `rpc-express-toolkit/safe`. It enables safe serialization by default and strict mode on the server:
 
 ```js
 // Server (safe preset)
@@ -169,9 +169,9 @@ const client = new RpcSafeClient('http://localhost:3000/api');
 
 This keeps JSON-RPC 2.0 compliance as default for the main entrypoint, while offering a convenient safe-mode import for projects that prefer explicit type disambiguation.
 
-Alternative: npm proxy package
+#### Alternative Compatibility Package
 
-If you prefer a dedicated package name, you can install the thin proxy `rpc-express-toolkit-safe` which simply re-exports the safe preset:
+`rpc-express-toolkit-safe` is a thin compatibility package that re-exports the same safe preset. Use it only when a separate package name is useful for dependency policy or migration; new projects can import `rpc-express-toolkit/safe` directly.
 
 ```bash
 npm install rpc-express-toolkit-safe
@@ -235,7 +235,7 @@ In `__rpc.capabilities`, `auth` is a boolean indicating whether authentication m
 
 For advanced configuration, middleware, structured logging, safe serialization, error handling, and more, see `README_ADVANCED.md`.
 
-## 🔗 Related Projects
+## Related Projects
 
 - [rpc-php-toolkit](https://github.com/n-car/rpc-php-toolkit) - PHP implementation
 - [rpc-dotnet-toolkit](https://github.com/n-car/rpc-dotnet-toolkit) - .NET implementation
