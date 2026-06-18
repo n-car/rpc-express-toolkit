@@ -288,21 +288,23 @@ class RpcEndpoint {
     this.addMethod(
       `${this.#introspectionPrefix}.describeAll`,
       async (_req, _context, _params) => {
-        const publicMethods = [];
+        const publicMethods = Object.entries(this.#methods)
+          .filter(([name]) => !name.startsWith(this.#introspectionPrefix))
+          .map(([name, methodConfig]) => {
+            const config =
+              typeof methodConfig === 'function' ? {} : methodConfig;
 
-        for (const [name, methodConfig] of Object.entries(this.#methods)) {
-          // Skip introspection methods
-          if (name.startsWith(this.#introspectionPrefix)) continue;
+            if (!config.exposeSchema) {
+              return null;
+            }
 
-          const config = typeof methodConfig === 'function' ? {} : methodConfig;
-          if (config.exposeSchema) {
-            publicMethods.push({
+            return {
               name,
               schema: config.schema || null,
               description: config.description || '',
-            });
-          }
-        }
+            };
+          })
+          .filter(Boolean);
 
         return publicMethods;
       },

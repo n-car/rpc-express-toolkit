@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.4.0] - 2026-06-19
+
+### Added
+- Added Express 4/5 compatibility tests and a CI matrix across Node.js 18, 20, 22, and 24.
+- Added `docs/COMPATIBILITY.md` with the supported runtime matrix.
+
+### Changed
+- Declared Express as a peer dependency supporting `^4.21.2 || ^5.0.0`.
+- Updated installation documentation to install Express explicitly alongside `rpc-express-toolkit`.
+
 ## [4.3.5] - 2026-06-11
 
 ### Changed

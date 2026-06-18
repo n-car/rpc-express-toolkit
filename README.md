@@ -22,13 +22,18 @@ JSON-RPC 2.0 toolkit for Express.js with simplified APIs, middleware, schema val
 ### Installation
 
 ```bash
-npm install rpc-express-toolkit
+npm install express rpc-express-toolkit
 # or
-yarn add rpc-express-toolkit
+yarn add express rpc-express-toolkit
 ```
 
 Requirements:
 - Node.js 18+ (uses `globalThis.fetch`)
+- Express 4.21+ or Express 5.x
+
+### Compatibility
+
+`rpc-express-toolkit` is tested with Node.js 18, 20, 22, and 24 across Express 4 and Express 5. See [Compatibility](docs/COMPATIBILITY.md) for the current runtime matrix.
 
 ### Server
 
