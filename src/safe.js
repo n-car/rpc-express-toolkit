@@ -110,3 +110,17 @@ module.exports = {
   createSafeEndpoint,
   createSafeClient,
 };
+
+// Make spread-based root re-exports visible to Node's CommonJS named-export
+// detection. These assignments preserve the existing object values and order.
+module.exports.RpcEndpoint = Main.RpcEndpoint;
+module.exports.RpcClient = Main.RpcClient;
+module.exports.RpcError = Main.RpcError;
+module.exports.RpcHttpError = Main.RpcHttpError;
+module.exports.Logger = Main.Logger;
+module.exports.MiddlewareManager = Main.MiddlewareManager;
+module.exports.builtInMiddlewares = Main.builtInMiddlewares;
+module.exports.SchemaValidator = Main.SchemaValidator;
+module.exports.commonSchemas = Main.commonSchemas;
+module.exports.SchemaBuilder = Main.SchemaBuilder;
+module.exports.BatchHandler = Main.BatchHandler;

@@ -1,9 +1,10 @@
 {
     "name":  "rpc-express-toolkit",
-    "version":  "4.4.0",
+    "version":  "4.4.1",
     "description":  "JSON-RPC 2.0 toolkit for Express.js with simplified APIs, structured logging, middleware, schema validation, batch support, and optional Safe Mode.",
     "main":  "src/index.js",
     "types":  "src/index.d.ts",
+    "type":  "commonjs",
     "exports":  {
                     ".":  {
                               "types":  "./src/index.d.ts",
@@ -31,7 +32,9 @@
                     "lint:fix":  "eslint src/ examples/ --fix",
                     "clean":  "node -e \"require(\u0027fs\u0027).existsSync(\u0027dist\u0027) \u0026\u0026 require(\u0027fs\u0027).rmSync(\u0027dist\u0027, {recursive: true})\"",
                     "build":  "node -e \"require.resolve(\u0027rpc-toolkit-js-client\u0027)\"",
-                    "prepublishOnly":  "npm run build",
+                    "typecheck":  "node test/package/runner.js --types-only",
+                    "package-test":  "node test/package/runner.js",
+                    "prepublishOnly":  "npm run build \u0026\u0026 npm run package-test",
                     "precommit":  "npm run lint \u0026\u0026 npm test"
                 },
     "repository":  {
@@ -77,6 +80,9 @@
                     "node":  "\u003e=18.0.0"
                 },
     "devDependencies":  {
+                            "@arethetypeswrong/cli":  "^0.18.5",
+                            "@types/express":  "^5.0.6",
+                            "@types/node":  "^18.19.0",
                             "eslint":  "^8.57.1",
                             "eslint-config-airbnb-base":  "^15.0.0",
                             "eslint-config-prettier":  "^9.1.2",
@@ -87,8 +93,10 @@
                             "jest":  "^29.7.0",
                             "lint-staged":  "^13.0.0",
                             "prettier":  "^3.6.2",
+                            "publint":  "^0.3.22",
                             "supertest":  "^6.3.3",
-                            "terser":  "^5.43.1"
+                            "terser":  "^5.43.1",
+                            "typescript":  "~6.0.3"
                         },
     "peerDependencies":  {
                              "express":  "^4.21.2 || ^5.0.0"

@@ -1,2 +1,3 @@
-export * from 'rpc-express-toolkit/safe';
+import Safe = require('rpc-express-toolkit/safe');
 
+export = Safe;
