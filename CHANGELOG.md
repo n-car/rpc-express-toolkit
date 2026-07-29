@@ -1,5 +1,16 @@
 # Changelog
 
+## [4.4.1] - 2026-07-29
+
+### Added
+
+- Added packaged consumer tests for TypeScript ESM/NodeNext, TypeScript CommonJS, and Node.js ESM and CommonJS runtime imports.
+- Added package validation based on the `npm pack` tarball to CI and the prepublish hook.
+
+### Fixed
+
+- Corrected the root and `/safe` TypeScript declarations for strict consumers with `skipLibCheck: false`, preserving the CommonJS default export, named imports in NodeNext, and the existing runtime API without requiring `esModuleInterop`.
+
 ## [4.4.0] - 2026-06-19
 
 ### Added

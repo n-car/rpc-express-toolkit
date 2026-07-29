@@ -1,290 +1,287 @@
 // Type definitions for rpc-express-toolkit
 
-import type { Router, Request, Response } from 'express';
+import type { Request, Response, Router } from 'express';
 import {
   RpcClient as SharedRpcClient,
   RpcError as SharedRpcError,
   RpcHttpError as SharedRpcHttpError,
-  RpcSafeClient as SharedRpcSafeClient
+  RpcSafeClient as SharedRpcSafeClient,
 } from 'rpc-toolkit-js-client';
 import type {
   RpcBatchRequest as SharedRpcBatchRequest,
-  RpcClientOptions as SharedRpcClientOptions
+  RpcClientOptions as SharedRpcClientOptions,
 } from 'rpc-toolkit-js-client';
-
-/**
- * JSON-RPC handler function type
- */
-type JSONRPCHandler<C> = (
-  req: Request,
-  context: C,
-  params: any
-) => any | Promise<any>;
-
-/**
- * Method configuration object
- */
-interface MethodConfig<C> {
-  handler: JSONRPCHandler<C>;
-  schema?: object;
-}
-
-/**
- * JSON-RPC error object
- */
-interface JSONRPCError {
-  code: number;
-  message: string;
-  data?: any;
-}
-
-/**
- * JSON-RPC response payload
- */
-interface JSONRPCResponsePayload {
-  id?: string | number | null;
-  result?: any;
-  error?: JSONRPCError;
-}
-
-/**
- * Logging configuration
- */
-interface LoggingConfig {
-  level?: 'trace' | 'debug' | 'info' | 'warn' | 'error';
-  format?: 'json' | 'simple';
-  transports?: Array<'console' | 'file'>;
-  file?: {
-    filename?: string;
-    maxsize?: number;
-    maxFiles?: number;
-  };
-}
-
-/**
- * CORS configuration
- */
-interface CorsConfig {
-  origin?: string | string[] | boolean;
-  credentials?: boolean;
-  methods?: string[];
-  allowedHeaders?: string[];
-}
-
-/**
- * Rate limiting configuration
- */
-interface RateLimitConfig {
-  windowMs?: number;
-  max?: number;
-  message?: string;
-  standardHeaders?: boolean;
-  legacyHeaders?: boolean;
-}
-
-/**
- * Authentication verifier. Return a truthy value to allow the call.
- */
-type AuthConfig = (req: Request) => boolean | Promise<boolean>;
-
-/**
- * Schema validation configuration
- */
-interface ValidationConfig {
-  strict?: boolean;
-  coerceTypes?: boolean;
-  removeAdditional?: boolean;
-}
-
-/**
- * RPC endpoint configuration options
- */
-interface RpcEndpointOptions {
-  prefix?: string;
-  maxBodySize?: string;
-  timeout?: number;
-  cors?: boolean | CorsConfig;
-  auth?: AuthConfig;
-  validation?: ValidationConfig;
-  safeEnabled?: boolean;
-  crossConfigurationEnabled?: boolean;
-  enableSchema?: boolean;
-  rateLimit?: RateLimitConfig;
-  logging?: LoggingConfig;
-  warnOnUnsafe?: boolean;
-  strictMode?: boolean;
-  maxSerializationDepth?: number;
-  maxDeserializationDepth?: number;
-  autoJsonMiddleware?: boolean;
-  jsonOptions?: {
-    limit?: string;
-    strict?: boolean;
-    type?: string | string[] | ((req: any) => boolean);
-    verify?: (req: any, res: any, buf: Buffer, encoding: string) => void;
-  };
-  // Additional options supported by implementation
-  methodWhitelist?: string[];
-  timing?: boolean;
-  metrics?: boolean;
-  healthCheck?: boolean;
-}
-
-/**
- * RPC client configuration options
- */
-type RpcClientOptions = SharedRpcClientOptions;
-type RpcBatchRequest = SharedRpcBatchRequest;
-type RpcClient = SharedRpcClient;
-type RpcError = SharedRpcError;
-type RpcHttpError = SharedRpcHttpError;
-type RpcSafeClient = SharedRpcSafeClient;
-
-declare const RpcClient: typeof SharedRpcClient;
-declare const RpcError: typeof SharedRpcError;
-declare const RpcHttpError: typeof SharedRpcHttpError;
-declare const RpcSafeClient: typeof SharedRpcSafeClient;
-
-/**
- * Deserialization options for safe prefixes
- */
-interface DeserializationOptions {
-  safeEnabled?: boolean;
-}
 
 /**
  * The main RpcEndpoint class for JSON-RPC 2.0 endpoints.
  */
 declare class RpcEndpoint<C = any> {
-  /**
-   * Constructor.
-   */
   constructor(router: Router, context: C, endpoint?: string);
-  constructor(router: Router, context: C, options?: RpcEndpointOptions);
-  constructor(router: Router, context: C, endpoint?: string, options?: RpcEndpointOptions);
+  constructor(
+    router: Router,
+    context: C,
+    options?: RpcEndpoint.RpcEndpointOptions
+  );
+  constructor(
+    router: Router,
+    context: C,
+    endpoint?: string,
+    options?: RpcEndpoint.RpcEndpointOptions
+  );
 
-  /**
-   * Returns the endpoint path, e.g. "/api".
-   */
+  /** The endpoint path, for example "/api". */
   get endpoint(): string;
 
-  /**
-   * Returns the map of all registered methods.
-   */
-  get methods(): { [methodName: string]: JSONRPCHandler<C> | MethodConfig<C> };
+  /** All registered methods. */
+  get methods(): Record<
+    string,
+    RpcEndpoint.JSONRPCHandler<C> | RpcEndpoint.MethodConfig<C>
+  >;
 
-  /**
-   * Get logger instance
-   */
-  get logger(): any;
+  get logger(): RpcEndpoint.Logger;
+  get middleware(): RpcEndpoint.MiddlewareManager;
+  get validator(): RpcEndpoint.SchemaValidator;
+  get options(): RpcEndpoint.RpcEndpointOptions;
 
-  /**
-   * Get middleware manager
-   */
-  get middleware(): any;
+  addMethod(name: string, handler: RpcEndpoint.JSONRPCHandler<C>): void;
+  addMethod(
+    name: string,
+    handler: RpcEndpoint.JSONRPCHandler<C>,
+    schemaOrOptions: object
+  ): void;
+  addMethod(name: string, config: RpcEndpoint.MethodConfig<C>): void;
 
-  /**
-   * Get validator instance
-   */
-  get validator(): any;
+  use(hook: RpcEndpoint.MiddlewareHook, middleware: Function): void;
 
-  /**
-   * Add a JSON-RPC method with optional schema validation.
-   */
-  addMethod(name: string, handler: JSONRPCHandler<C>): void;
-  addMethod(name: string, handler: JSONRPCHandler<C>, schema: object): void;
-  addMethod(name: string, config: MethodConfig<C>): void;
-
-  /**
-   * Add middleware for specific hooks
-   */
-  use(hook: 'beforeCall' | 'afterCall' | 'onError' | 'beforeValidation' | 'afterValidation', middleware: Function): void;
-
-  /**
-   * Remove a method
-   */
   removeMethod(name: string): void;
-
-  /**
-   * Get method configuration
-   */
-  getMethod(name: string): JSONRPCHandler<C> | MethodConfig<C> | undefined;
-
-  /**
-   * List all registered methods
-   */
+  getMethod(
+    name: string
+  ): RpcEndpoint.JSONRPCHandler<C> | RpcEndpoint.MethodConfig<C> | undefined;
   listMethods(): string[];
-
-  /**
-   * Get metrics data
-   */
   getMetrics(): object;
 
-  /**
-   * Serve client scripts (for calling JSON-RPC from browser).
-   */
   static serveScripts(router: Router, url?: string): void;
 
-  /**
-   * Send a JSON-RPC 2.0 response to the client.
-   */
-  reply(res: Response, responsePayload: JSONRPCResponsePayload): void;
+  reply(
+    res: Response,
+    responsePayload: RpcEndpoint.JSONRPCResponsePayload
+  ): void;
 
-  /**
-   * Recursively serialize BigInt and Date to JSON-safe string formats.
-   */
   serializeBigIntsAndDates(value: any): any;
-
-  /**
-   * Recursively deserialize strings representing BigInt and Date.
-   */
-  deserializeBigIntsAndDates(value: any, options?: DeserializationOptions): any;
+  deserializeBigIntsAndDates(
+    value: any,
+    options?: RpcEndpoint.DeserializationOptions
+  ): any;
 }
 
 /**
- * Export types for external use
+ * Public properties and types attached to the CommonJS export.
  */
-export {
-  JSONRPCHandler,
-  MethodConfig,
-  JSONRPCError,
-  JSONRPCResponsePayload,
-  LoggingConfig,
-  CorsConfig,
-  RateLimitConfig,
-  AuthConfig,
-  ValidationConfig,
-  RpcEndpointOptions,
-  RpcClientOptions,
-  RpcBatchRequest,
-  DeserializationOptions,
-  RpcEndpoint,
-  RpcClient,
-  RpcError,
-  RpcHttpError,
-  RpcSafeClient
-};
+declare namespace RpcEndpoint {
+  // module.exports.RpcEndpoint === module.exports
+  export { RpcEndpoint };
 
-/**
- * Main export - RpcEndpoint class with static properties
- */
-declare const Main: {
-  new <C>(router: Router, context: C, endpoint?: string): RpcEndpoint<C>;
-  new <C>(router: Router, context: C, options?: RpcEndpointOptions): RpcEndpoint<C>;
-  new <C>(router: Router, context: C, endpoint?: string, options?: RpcEndpointOptions): RpcEndpoint<C>;
-  prototype: RpcEndpoint<any>;
-  serveScripts(router: Router, url?: string): void;
-  RpcEndpoint: typeof RpcEndpoint;
-  RpcClient: typeof RpcClient;
-  RpcError: typeof RpcError;
-  RpcHttpError: typeof RpcHttpError;
-  RpcSafeClient: typeof RpcSafeClient;
-  Logger: any;
-  MiddlewareManager: any;
-  builtInMiddlewares: any;
-  SchemaValidator: any;
-  commonSchemas: any;
-  SchemaBuilder: any;
-  BatchHandler: any;
-};
+  // Classes re-exported from rpc-toolkit-js-client.
+  export {
+    SharedRpcClient as RpcClient,
+    SharedRpcError as RpcError,
+    SharedRpcHttpError as RpcHttpError,
+    SharedRpcSafeClient as RpcSafeClient,
+  };
 
-export = Main;
+  /** JSON-RPC handler function. */
+  export type JSONRPCHandler<C> = (
+    req: Request,
+    context: C,
+    params: any
+  ) => any | Promise<any>;
+
+  /** Method configuration object. */
+  export interface MethodConfig<C> {
+    handler: JSONRPCHandler<C>;
+    schema?: object;
+    exposeSchema?: boolean;
+    description?: string;
+  }
+
+  /** JSON-RPC error object. */
+  export interface JSONRPCError {
+    code: number;
+    message: string;
+    data?: any;
+  }
+
+  /** JSON-RPC response payload. */
+  export interface JSONRPCResponsePayload {
+    id?: string | number | null;
+    result?: any;
+    error?: JSONRPCError;
+  }
+
+  export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error';
+
+  /** Logging configuration. */
+  export interface LoggingConfig {
+    level?: LogLevel;
+    enabled?: boolean;
+    prefix?: string;
+    logger?: Partial<
+      Record<LogLevel, (entry: Record<string, unknown>) => void>
+    >;
+    format?: 'json' | 'simple';
+    transports?: Array<'console' | 'file'>;
+    file?: {
+      filename?: string;
+      maxsize?: number;
+      maxFiles?: number;
+    };
+  }
+
+  /** CORS configuration. */
+  export interface CorsConfig {
+    origin?: string | string[] | boolean;
+    credentials?: boolean;
+    methods?: string[];
+    allowedHeaders?: string[];
+    headers?: string[];
+  }
+
+  /** Rate limiting configuration. */
+  export interface RateLimitConfig {
+    windowMs?: number;
+    max?: number;
+    message?: string;
+    standardHeaders?: boolean;
+    legacyHeaders?: boolean;
+  }
+
+  /** Authentication verifier. Return a truthy value to allow the call. */
+  export type AuthConfig = (req: Request) => boolean | Promise<boolean>;
+
+  /** Schema validation configuration. */
+  export interface ValidationConfig {
+    strict?: boolean;
+    coerceTypes?: boolean;
+    removeAdditional?: boolean;
+    useDefaults?: boolean;
+    ajvOptions?: Record<string, unknown>;
+  }
+
+  /** RPC endpoint configuration options. */
+  export interface RpcEndpointOptions {
+    endpoint?: string;
+    prefix?: string;
+    maxBodySize?: string;
+    timeout?: number;
+    cors?: boolean | CorsConfig;
+    auth?: AuthConfig;
+    validation?: ValidationConfig;
+    safeEnabled?: boolean;
+    crossConfigurationEnabled?: boolean;
+    enableSchema?: boolean;
+    rateLimit?: RateLimitConfig;
+    logging?: LoggingConfig;
+    warnOnUnsafe?: boolean;
+    strictMode?: boolean;
+    maxSerializationDepth?: number;
+    maxDeserializationDepth?: number;
+    autoJsonMiddleware?: boolean;
+    jsonOptions?: {
+      limit?: string;
+      strict?: boolean;
+      type?: string | string[] | ((req: any) => boolean);
+      verify?: (req: any, res: any, buf: Buffer, encoding: string) => void;
+    };
+    methodWhitelist?: string[];
+    timing?: boolean;
+    metrics?: boolean;
+    healthCheck?: boolean;
+    enableIntrospection?: boolean;
+    introspectionPrefix?: string;
+  }
+
+  /** RPC client configuration options. */
+  export type RpcClientOptions = SharedRpcClientOptions;
+  export type RpcBatchRequest = SharedRpcBatchRequest;
+
+  /** Deserialization options for safe prefixes. */
+  export interface DeserializationOptions {
+    safeEnabled?: boolean;
+  }
+
+  export type MiddlewareHook =
+    | 'beforeCall'
+    | 'afterCall'
+    | 'onError'
+    | 'beforeValidation'
+    | 'afterValidation';
+
+  export interface MiddlewareContext<C = any> {
+    req?: Request;
+    res?: Response | null;
+    context?: C;
+    method?: string;
+    params?: any;
+    result?: any;
+    error?: any;
+    batchIndex?: number;
+    isNotification?: boolean;
+    startTime?: number;
+    [key: string]: any;
+  }
+
+  export type Middleware = (context: MiddlewareContext) => any | Promise<any>;
+
+  export interface RpcMetrics {
+    methods: number;
+    middleware: {
+      beforeCall: number;
+      afterCall: number;
+      onError: number;
+    };
+    uptime: number;
+    memory: Record<string, number>;
+    timestamp: string;
+  }
+
+  /**
+   * Utility helpers were historically exposed as `any`. Keep their instance
+   * contracts permissive in this patch while still publishing value/type names.
+   */
+  export type Logger = any;
+  export const Logger: {
+    new (...args: any[]): Logger;
+  };
+
+  export type MiddlewareManager = any;
+  export const MiddlewareManager: {
+    new (...args: any[]): MiddlewareManager;
+  };
+
+  export const builtInMiddlewares: any;
+
+  export interface SchemaValidationResult<T = any> {
+    valid: boolean;
+    errors: any[] | null;
+    data: T;
+  }
+
+  export type SchemaValidator = any;
+  export const SchemaValidator: {
+    new (...args: any[]): SchemaValidator;
+  };
+
+  export const commonSchemas: any;
+
+  export type SchemaBuilder = any;
+  export const SchemaBuilder: {
+    new (...args: any[]): SchemaBuilder;
+  };
+
+  export type BatchHandler = any;
+  export const BatchHandler: {
+    new (...args: any[]): BatchHandler;
+  };
+}
+
+export = RpcEndpoint;

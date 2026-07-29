@@ -28,12 +28,86 @@ yarn add express rpc-express-toolkit
 ```
 
 Requirements:
+
 - Node.js 18+ (uses `globalThis.fetch`)
 - Express 4.21+ or Express 5.x
 
 ### Compatibility
 
 `rpc-express-toolkit` is tested with Node.js 18, 20, 22, and 24 across Express 4 and Express 5. See [Compatibility](docs/COMPATIBILITY.md) for the current runtime matrix.
+
+### TypeScript
+
+The package supports TypeScript ESM/NodeNext and CommonJS consumers. Both forms are tested with `strict: true`, `skipLibCheck: false`, and `esModuleInterop: false` against the tarball produced by `npm pack`.
+
+Install the TypeScript and Express declarations used by these examples:
+
+```bash
+npm install --save-dev typescript @types/express @types/node
+```
+
+ESM/NodeNext (`package.json` contains `"type": "module"`):
+
+```typescript
+import express from 'express';
+import RpcEndpoint, {
+  RpcEndpoint as NamedRpcEndpoint,
+  RpcClient,
+  type RpcEndpointOptions,
+} from 'rpc-express-toolkit';
+import {
+  RpcSafeClient,
+  RpcSafeEndpoint,
+} from 'rpc-express-toolkit/safe';
+
+const app = express();
+app.use(express.json());
+
+const options: RpcEndpointOptions = { safeEnabled: false };
+const rpc = new RpcEndpoint(app, {}, options);
+const namedRpc = new NamedRpcEndpoint(app, {}, '/named');
+const client = new RpcClient('http://localhost:3000/api');
+const safeRpc = new RpcSafeEndpoint(app, {}, '/safe');
+const safeClient = new RpcSafeClient('http://localhost:3000/safe');
+```
+
+Use these compiler options for the ESM example:
+
+```json
+{
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": false,
+    "esModuleInterop": false,
+    "ignoreDeprecations": "6.0"
+  }
+}
+```
+
+`ignoreDeprecations` only acknowledges TypeScript 6's deprecation notice for
+the explicitly tested `esModuleInterop: false` setting.
+
+CommonJS TypeScript (`.cts` with NodeNext or Node16 resolution):
+
+```typescript
+import express = require('express');
+import RpcEndpoint = require('rpc-express-toolkit');
+import Safe = require('rpc-express-toolkit/safe');
+
+const app = express();
+app.use(express.json());
+
+const options: RpcEndpoint.RpcEndpointOptions = { safeEnabled: false };
+const rpc = new RpcEndpoint(app, {}, options);
+const namedRpc = new RpcEndpoint.RpcEndpoint(app, {}, '/named');
+const client = new RpcEndpoint.RpcClient('http://localhost:3000/api');
+const safeRpc = new Safe.RpcSafeEndpoint(app, {}, '/safe');
+const safeClient = new Safe.RpcSafeClient('http://localhost:3000/safe');
+```
+
+The root import remains the `RpcEndpoint` CommonJS default while also exposing its named API. The `/safe` subpath exposes the safe classes and the root utilities it re-exports at runtime.
 
 ### Server
 

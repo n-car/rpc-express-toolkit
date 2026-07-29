@@ -1158,3 +1158,6 @@ module.exports.SchemaValidator = SchemaValidator;
 module.exports.commonSchemas = commonSchemas;
 module.exports.SchemaBuilder = SchemaBuilder;
 module.exports.BatchHandler = BatchHandler;
+// Keep the existing static method discoverable as a named export to Node's
+// CommonJS lexer without changing the RpcEndpoint object or its descriptor.
+module.exports.serveScripts = RpcEndpoint.serveScripts;
