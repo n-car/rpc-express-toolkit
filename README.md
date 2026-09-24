@@ -201,7 +201,7 @@ Safe type disambiguation is disabled by default for maximum JSON-RPC 2.0 compati
 
 ## Authentication And Method Restrictions
 
-Authentication is supported through the built-in `auth` middleware. The `auth` option is a function that receives the Express request. Returning a truthy value allows the RPC call; returning a falsy value rejects it with JSON-RPC error `-32001` and message `Authentication required`. Throwing also rejects the call and returns a JSON-RPC error based on the thrown error.
+Authentication is supported through the built-in `auth` middleware. The `auth` option is a function that receives the Express request. Returning a truthy value allows the RPC call; a truthy non-boolean value is available to handlers as the optional fourth argument's `authenticatedUser`. Returning a falsy value rejects the call with JSON-RPC error `-32001` and message `Authentication required`. Throwing also rejects the call and returns a JSON-RPC error based on the thrown error.
 
 ```js
 const rpc = new RpcEndpoint(app, context, {
@@ -211,7 +211,9 @@ const rpc = new RpcEndpoint(app, context, {
   },
 });
 
-rpc.addMethod('ping', () => 'pong');
+rpc.addMethod('whoami', (_req, _context, _params, callContext) =>
+  callContext.authenticatedUser
+);
 ```
 
 For simple method-level restriction, use `methodWhitelist`:

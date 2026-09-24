@@ -12,6 +12,7 @@ declare namespace Safe {
   export import RpcHttpError = Main.RpcHttpError;
   export import Logger = Main.Logger;
   export import MiddlewareManager = Main.MiddlewareManager;
+  export import MemoryRateLimitStore = Main.MemoryRateLimitStore;
   export import builtInMiddlewares = Main.builtInMiddlewares;
   export import SchemaValidator = Main.SchemaValidator;
   export import commonSchemas = Main.commonSchemas;
@@ -27,6 +28,7 @@ declare namespace Safe {
   export import LoggingConfig = Main.LoggingConfig;
   export import CorsConfig = Main.CorsConfig;
   export import RateLimitConfig = Main.RateLimitConfig;
+  export import RateLimitStore = Main.RateLimitStore;
   export import AuthConfig = Main.AuthConfig;
   export import ValidationConfig = Main.ValidationConfig;
   export import RpcEndpointOptions = Main.RpcEndpointOptions;

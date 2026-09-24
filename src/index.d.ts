@@ -93,7 +93,8 @@ declare namespace RpcEndpoint {
   export type JSONRPCHandler<C> = (
     req: Request,
     context: C,
-    params: any
+    params: any,
+    callContext?: MiddlewareContext<C>
   ) => any | Promise<any>;
 
   /** Method configuration object. */
@@ -153,10 +154,19 @@ declare namespace RpcEndpoint {
     message?: string;
     standardHeaders?: boolean;
     legacyHeaders?: boolean;
+    store?: RateLimitStore;
   }
 
-  /** Authentication verifier. Return a truthy value to allow the call. */
-  export type AuthConfig = (req: Request) => boolean | Promise<boolean>;
+  /** Authentication verifier. A truthy non-boolean result becomes authenticatedUser. */
+  export type AuthConfig = (req: Request) => unknown | Promise<unknown>;
+
+  export interface RateLimitStore {
+    increment(
+      key: string,
+      windowMs: number,
+      now: number
+    ): number | Promise<number>;
+  }
 
   /** Schema validation configuration. */
   export interface ValidationConfig {
@@ -198,6 +208,8 @@ declare namespace RpcEndpoint {
     healthCheck?: boolean;
     enableIntrospection?: boolean;
     introspectionPrefix?: string;
+    enableBatch?: boolean;
+    maxBatchSize?: number;
   }
 
   /** RPC client configuration options. */
@@ -227,6 +239,7 @@ declare namespace RpcEndpoint {
     batchIndex?: number;
     isNotification?: boolean;
     startTime?: number;
+    authenticatedUser?: unknown;
     [key: string]: any;
   }
 
@@ -256,6 +269,10 @@ declare namespace RpcEndpoint {
   export type MiddlewareManager = any;
   export const MiddlewareManager: {
     new (...args: any[]): MiddlewareManager;
+  };
+
+  export const MemoryRateLimitStore: {
+    new (): RateLimitStore;
   };
 
   export const builtInMiddlewares: any;

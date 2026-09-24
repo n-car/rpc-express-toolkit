@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+## [4.5.0] - 2026-09-24
+
+### Added
+
+- Added `enableBatch` and `maxBatchSize` endpoint options.
+- Added pluggable rate-limit stores with `MemoryRateLimitStore` as the default.
+- Added a final call-context argument for handlers, including `authenticatedUser`.
+
+### Fixed
+
+- Propagated middleware context and `afterCall` result changes to handlers and responses.
+- Made CORS work for batch calls, origin allowlists, credentials, and preflight requests.
+
 ## [4.4.2] - 2026-07-30
 
 ### Changed

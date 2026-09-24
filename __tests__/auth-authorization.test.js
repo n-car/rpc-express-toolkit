@@ -47,6 +47,25 @@ describe('authentication and method restrictions', () => {
     });
   });
 
+  test('exposes the authenticated user to the handler call context', async () => {
+    const user = { id: 42, roles: ['reader'] };
+    const { app, rpc } = createAppWithRpc({
+      auth: async (req) =>
+        req.headers.authorization === 'Bearer secret-token' ? user : null,
+    });
+
+    rpc.addMethod('whoami', (_req, _context, _params, callContext) =>
+      callContext.authenticatedUser
+    );
+
+    const response = await request(app)
+      .post('/api')
+      .set('Authorization', 'Bearer secret-token')
+      .send({ jsonrpc: '2.0', method: 'whoami', id: 1 });
+
+    expect(response.body.result).toEqual(user);
+  });
+
   test('rejects unauthenticated calls with JSON-RPC -32001', async () => {
     const { app, rpc } = createAppWithRpc({
       auth: async (req) => req.headers.authorization === 'Bearer secret-token',
@@ -146,5 +165,38 @@ describe('authentication and method restrictions', () => {
         message: 'Forbidden',
       },
     });
+  });
+
+  test('passes middleware context changes to the handler', async () => {
+    const { app, rpc } = createAppWithRpc();
+
+    rpc.use('beforeCall', async (ctx) => ({
+      ...ctx,
+      context: { appName: 'changed' },
+      user: { id: 7 },
+    }));
+
+    rpc.addMethod('context.read', (_req, context, _params, callContext) => ({
+      appName: context.appName,
+      userId: callContext.user.id,
+    }));
+
+    const response = await request(app)
+      .post('/api')
+      .send({ jsonrpc: '2.0', method: 'context.read', id: 1 });
+
+    expect(response.body.result).toEqual({ appName: 'changed', userId: 7 });
+  });
+
+  test('uses a result transformed by afterCall middleware', async () => {
+    const { app, rpc } = createAppWithRpc();
+    rpc.use('afterCall', async (ctx) => ({ ...ctx, result: 'wrapped' }));
+    rpc.addMethod('result.read', () => 'original');
+
+    const response = await request(app)
+      .post('/api')
+      .send({ jsonrpc: '2.0', method: 'result.read', id: 1 });
+
+    expect(response.body.result).toBe('wrapped');
   });
 });

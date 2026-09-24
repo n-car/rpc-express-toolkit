@@ -69,6 +69,8 @@ const rpc = new RpcEndpoint(app, context, {
   warnOnUnsafe: true,
   healthCheck: true,
   metrics: true,
+  enableBatch: true,
+  maxBatchSize: 100,
 });
 ```
 
@@ -138,13 +140,23 @@ rpc.use('beforeCall', async (ctx) => {
 ```
 
 Built-ins:
-- `rateLimit({ windowMs, max })`
+- `rateLimit({ windowMs, max, store })`
 - `auth(verifyFn)`
 - `cors({ origin, methods, headers })`
 - `timing()`
 - `methodWhitelist(["allowedMethod"])`
 
-Authentication uses `auth: async (req) => boolean` in the endpoint options. Returning a truthy value allows the call; returning a falsy value rejects it with JSON-RPC error `-32001` and message `Authentication required`.
+Authentication uses `auth: async (req) => userOrBoolean` in the endpoint options. Returning a truthy value allows the call; a truthy non-boolean value is exposed to handlers as `callContext.authenticatedUser`. Returning a falsy value rejects it with JSON-RPC error `-32001` and message `Authentication required`.
+
+Handlers can accept a fourth, optional call context argument containing the final values produced by middleware:
+
+```javascript
+rpc.addMethod('whoami', (_req, _appContext, _params, callContext) =>
+  callContext.authenticatedUser
+);
+```
+
+The default rate-limit store is process-local. A shared store can be supplied without adding a database dependency to the toolkit. It must implement the atomic contract `increment(key, windowMs, now)` and return the hit count for the active window.
 
 `methodWhitelist` is a simple method-level restriction mechanism. It rejects calls to registered methods that are not in the whitelist, but it is not a declarative RBAC, roles, scopes, or permission framework.
 
@@ -233,6 +245,9 @@ npm run lint
 - Use authentication middleware and `methodWhitelist` for basic access restrictions.
 - Implement project-specific authorization with middleware hooks when you need roles, scopes, or other permission checks.
 - Enable `rateLimit` to mitigate abuse.
+- Use a shared rate-limit store when running multiple workers or instances.
+- Set `enableBatch: false` when batch is unnecessary, or configure a conservative `maxBatchSize`.
+- Keep introspection disabled and configure an explicit CORS origin in production; do not use `cors: true` for public deployments because it implies a wildcard origin.
 - Avoid logging sensitive data; the logger sanitizes common keys.
 
 ## License

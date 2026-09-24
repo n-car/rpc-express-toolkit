@@ -20,7 +20,11 @@ const DEFAULT_MAX_SERIALIZATION_DEPTH = 100;
 /** @typedef {import("express").Response} Response */
 
 const Logger = require('./logger');
-const { MiddlewareManager, builtInMiddlewares } = require('./middleware');
+const {
+  MiddlewareManager,
+  MemoryRateLimitStore,
+  builtInMiddlewares,
+} = require('./middleware');
 const {
   SchemaValidator,
   commonSchemas,
@@ -165,6 +169,12 @@ class RpcEndpoint {
       this.#options.enableIntrospection === true; // Default false
     this.#options.introspectionPrefix =
       this.#options.introspectionPrefix || '__rpc'; // Default __rpc
+    this.#options.enableBatch = this.#options.enableBatch !== false;
+    this.#options.maxBatchSize =
+      Number.isInteger(this.#options.maxBatchSize) &&
+      this.#options.maxBatchSize > 0
+        ? this.#options.maxBatchSize
+        : 100;
 
     this.#introspectionPrefix = this.#options.introspectionPrefix;
 
@@ -334,7 +344,7 @@ class RpcEndpoint {
       `${this.#introspectionPrefix}.capabilities`,
       async (_req, _context, _params) => ({
         safeMode: this.#options.safeEnabled,
-        batch: true,
+        batch: this.#options.enableBatch,
         introspection: true,
         introspectionPrefix: this.#introspectionPrefix,
         validation: !!this.#options.validation,
@@ -428,6 +438,14 @@ class RpcEndpoint {
     if (this.#options.metrics) {
       router.get(`${this.#endpoint}/metrics`, (req, res) => {
         res.json(this.getMetrics());
+      });
+    }
+
+    if (this.#options.cors) {
+      const corsMiddleware = builtInMiddlewares.cors(this.#options.cors);
+      router.options(this.#endpoint, async (req, res) => {
+        await corsMiddleware({ req, res });
+        res.status(204).end();
       });
     }
 
@@ -629,13 +647,22 @@ class RpcEndpoint {
       }
 
       // Invoke the handler
-      const result = await Promise.resolve(
-        handler(req, context, middlewareContext.params)
+      let result = await Promise.resolve(
+        handler(
+          req,
+          middlewareContext.context,
+          middlewareContext.params,
+          middlewareContext
+        )
       );
 
       // Execute afterCall middleware
       middlewareContext.result = result;
-      await this.#middleware.execute('afterCall', middlewareContext);
+      middlewareContext = await this.#middleware.execute(
+        'afterCall',
+        middlewareContext
+      );
+      result = middlewareContext.result;
 
       // Log success
       const duration = Date.now() - startTime;
@@ -1153,6 +1180,7 @@ module.exports.RpcHttpError = RpcHttpError;
 module.exports.RpcSafeClient = RpcSafeClient;
 module.exports.Logger = Logger;
 module.exports.MiddlewareManager = MiddlewareManager;
+module.exports.MemoryRateLimitStore = MemoryRateLimitStore;
 module.exports.builtInMiddlewares = builtInMiddlewares;
 module.exports.SchemaValidator = SchemaValidator;
 module.exports.commonSchemas = commonSchemas;

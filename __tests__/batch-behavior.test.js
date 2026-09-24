@@ -61,6 +61,74 @@ describe('Batch behavior', () => {
     ]);
   });
 
+  test('can disable batch requests', async () => {
+    const disabledApp = express();
+    disabledApp.use(express.json());
+    const disabledRpc = new RpcEndpoint(disabledApp, {}, { enableBatch: false });
+    disabledRpc.addMethod('echo', (_req, _ctx, params) => params);
+
+    const res = await request(disabledApp)
+      .post('/api')
+      .send([{ jsonrpc: '2.0', method: 'echo', id: 1 }]);
+
+    expect(res.body.error.code).toBe(-32600);
+    expect(res.body.error.message).toContain('not enabled');
+  });
+
+  test('enforces the configured maximum batch size', async () => {
+    const limitedApp = express();
+    limitedApp.use(express.json());
+    const limitedRpc = new RpcEndpoint(limitedApp, {}, { maxBatchSize: 1 });
+    limitedRpc.addMethod('echo', (_req, _ctx, params) => params);
+
+    const res = await request(limitedApp)
+      .post('/api')
+      .send([
+        { jsonrpc: '2.0', method: 'echo', id: 1 },
+        { jsonrpc: '2.0', method: 'echo', id: 2 },
+      ]);
+
+    expect(res.body.error.code).toBe(-32600);
+    expect(res.body.error.message).toContain('maximum of 1');
+  });
+
+  test('supports CORS middleware for batch requests', async () => {
+    const corsApp = express();
+    corsApp.use(express.json());
+    const corsRpc = new RpcEndpoint(corsApp, {}, {
+      cors: { origin: 'https://app.example' },
+    });
+    corsRpc.addMethod('echo', (_req, _ctx, params) => params);
+
+    const res = await request(corsApp)
+      .post('/api')
+      .send([{ jsonrpc: '2.0', method: 'echo', id: 1 }]);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['access-control-allow-origin']).toBe(
+      'https://app.example'
+    );
+  });
+
+  test('handles CORS preflight on the RPC route', async () => {
+    const corsApp = express();
+    corsApp.use(express.json());
+    const corsRpc = new RpcEndpoint(corsApp, {}, {
+      cors: { origin: ['https://app.example'], credentials: true },
+    });
+    corsRpc.addMethod('echo', (_req, _ctx, params) => params);
+
+    const res = await request(corsApp)
+      .options('/api')
+      .set('Origin', 'https://app.example');
+
+    expect(res.status).toBe(204);
+    expect(res.headers['access-control-allow-origin']).toBe(
+      'https://app.example'
+    );
+    expect(res.headers['access-control-allow-credentials']).toBe('true');
+  });
+
   test('id null is a response-bearing request and missing id is notification', async () => {
     const res = await request(app)
       .post('/api')

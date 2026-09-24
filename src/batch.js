@@ -52,6 +52,26 @@ class BatchHandler {
       };
     }
 
+    if (!this.endpoint.options.enableBatch) {
+      return {
+        valid: false,
+        error: {
+          code: -32600,
+          message: 'Invalid Request: Batch requests are not enabled',
+        },
+      };
+    }
+
+    if (batch.length > this.endpoint.options.maxBatchSize) {
+      return {
+        valid: false,
+        error: {
+          code: -32600,
+          message: `Invalid Request: Batch size exceeds maximum of ${this.endpoint.options.maxBatchSize}`,
+        },
+      };
+    }
+
     return { valid: true };
   }
 
@@ -76,7 +96,13 @@ class BatchHandler {
     // Process all requests in parallel
     const promises = batch.map(async (request, index) => {
       try {
-        return await this.processSingleRequest(request, req, context, index);
+        return await this.processSingleRequest(
+          request,
+          req,
+          res,
+          context,
+          index
+        );
       } catch (error) {
         const errorData = this.serializeErrorData(error, index);
         return {
@@ -101,11 +127,12 @@ class BatchHandler {
    * Process a single request within a batch
    * @param {Object} request
    * @param {Object} req
+   * @param {Object} res
    * @param {any} context
    * @param {number} batchIndex
    * @returns {Promise<Object|null>}
    */
-  async processSingleRequest(request, req, context, batchIndex) {
+  async processSingleRequest(request, req, res, context, batchIndex) {
     const { method, params, id } = request || {};
     const envelope = validateEnvelope(request);
 
@@ -183,7 +210,7 @@ class BatchHandler {
     // Initialize middleware context
     let middlewareContext = {
       req,
-      res: null, // No response object for batch items
+      res,
       method,
       params: deserializedParams,
       context,
@@ -236,14 +263,23 @@ class BatchHandler {
       }
 
       // Execute the handler
-      const result = await Promise.resolve(
-        handler(req, context, middlewareContext.params)
+      let result = await Promise.resolve(
+        handler(
+          req,
+          middlewareContext.context,
+          middlewareContext.params,
+          middlewareContext
+        )
       );
 
       // Execute after middleware
       if (this.endpoint.middleware) {
         middlewareContext.result = result;
-        await this.endpoint.middleware.execute('afterCall', middlewareContext);
+        middlewareContext = await this.endpoint.middleware.execute(
+          'afterCall',
+          middlewareContext
+        );
+        result = middlewareContext.result;
       }
 
       // For notifications, return null (will be filtered out)

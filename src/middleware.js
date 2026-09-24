@@ -3,6 +3,8 @@
  * @description Handles middleware execution for JSON-RPC requests including built-in middleware
  */
 
+const MemoryRateLimitStore = require('./memory-rate-limit-store');
+
 /**
  * Middleware manager for handling RPC middleware
  */
@@ -138,32 +140,26 @@ const builtInMiddlewares = {
     const max = options.max || 100; // 100 requests per window
     const message = options.message || 'Too many requests';
 
-    const requests = new Map();
+    const store = options.store || new MemoryRateLimitStore();
+
+    if (!store || typeof store.increment !== 'function') {
+      throw new TypeError(
+        'Rate limit store must implement increment(key, windowMs, now)'
+      );
+    }
 
     return async (context) => {
       const { req } = context;
       const key = req.ip || req.connection?.remoteAddress || 'unknown';
       const now = Date.now();
 
-      // Clean old entries
-      if (requests.has(key)) {
-        const userRequests = requests.get(key);
-        const validRequests = userRequests.filter(
-          (time) => now - time < windowMs
-        );
-        requests.set(key, validRequests);
-      }
+      const requestCount = await store.increment(key, windowMs, now);
 
-      const userRequests = requests.get(key) || [];
-
-      if (userRequests.length >= max) {
+      if (requestCount > max) {
         const error = new Error(message);
         error.code = -32000; // Custom JSON-RPC error code
         throw error;
       }
-
-      userRequests.push(now);
-      requests.set(key, userRequests);
 
       return context;
     };
@@ -177,15 +173,19 @@ const builtInMiddlewares = {
   auth(authFunction) {
     return async (context) => {
       const { req } = context;
-      const isAuthenticated = await authFunction(req);
+      const authenticatedUser = await authFunction(req);
 
-      if (!isAuthenticated) {
+      if (!authenticatedUser) {
         const error = new Error('Authentication required');
         error.code = -32001;
         throw error;
       }
 
-      return context;
+      return {
+        ...context,
+        authenticatedUser:
+          authenticatedUser === true ? undefined : authenticatedUser,
+      };
     };
   },
 
@@ -195,16 +195,37 @@ const builtInMiddlewares = {
    * @returns {Function}
    */
   cors(options = {}) {
-    const origin = options.origin || '*';
-    const methods = options.methods || ['POST'];
-    const headers = options.headers || ['Content-Type'];
+    const config = options === true ? {} : options;
+    const origin = config.origin ?? '*';
+    const methods = config.methods || ['POST'];
+    const headers = config.headers || config.allowedHeaders || ['Content-Type'];
 
     return async (context) => {
-      const { res } = context;
+      const { req, res } = context;
+      const requestOrigin = req?.headers?.origin;
+      let allowedOrigin = origin;
 
-      res.header('Access-Control-Allow-Origin', origin);
+      if (origin === false) {
+        return context;
+      }
+
+      if (Array.isArray(origin)) {
+        if (!requestOrigin || !origin.includes(requestOrigin)) {
+          return context;
+        }
+        allowedOrigin = requestOrigin;
+        res.vary('Origin');
+      } else if (origin === true) {
+        allowedOrigin = requestOrigin || '*';
+        if (requestOrigin) res.vary('Origin');
+      }
+
+      res.header('Access-Control-Allow-Origin', allowedOrigin);
       res.header('Access-Control-Allow-Methods', methods.join(', '));
       res.header('Access-Control-Allow-Headers', headers.join(', '));
+      if (config.credentials === true) {
+        res.header('Access-Control-Allow-Credentials', 'true');
+      }
 
       return context;
     };
@@ -241,4 +262,8 @@ const builtInMiddlewares = {
   },
 };
 
-module.exports = { MiddlewareManager, builtInMiddlewares };
+module.exports = {
+  MiddlewareManager,
+  MemoryRateLimitStore,
+  builtInMiddlewares,
+};

@@ -119,6 +119,7 @@ module.exports.RpcError = Main.RpcError;
 module.exports.RpcHttpError = Main.RpcHttpError;
 module.exports.Logger = Main.Logger;
 module.exports.MiddlewareManager = Main.MiddlewareManager;
+module.exports.MemoryRateLimitStore = Main.MemoryRateLimitStore;
 module.exports.builtInMiddlewares = Main.builtInMiddlewares;
 module.exports.SchemaValidator = Main.SchemaValidator;
 module.exports.commonSchemas = Main.commonSchemas;
