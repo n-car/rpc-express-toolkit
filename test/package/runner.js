@@ -218,6 +218,18 @@ function assertPackedFiles(packResult, requiredPaths) {
   }
 }
 
+function assertPackedModes(packResult) {
+  const invalidFiles = packResult.files.filter((file) => file.mode !== 0o644);
+
+  if (invalidFiles.length > 0) {
+    throw new Error(
+      `${packResult.name} contains files without mode 0644: ${invalidFiles
+        .map((file) => `${file.path} (${file.mode.toString(8)})`)
+        .join(', ')}. Pack and publish from a native Linux filesystem.`
+    );
+  }
+}
+
 function removeTemporaryDirectory(directory) {
   const resolvedDirectory = resolve(directory);
   const temporaryRoot = `${resolve(tmpdir())}${sep}`;
@@ -273,6 +285,7 @@ function executePackageTests() {
       'src/safe.js',
       'src/safe.d.ts',
     ]);
+    assertPackedModes(packResult);
 
     const safePackResult = runStep('pack safe proxy package', () => {
       const output = runNpm(
@@ -291,6 +304,7 @@ function executePackageTests() {
       'index.d.ts',
       'LICENSE',
     ]);
+    assertPackedModes(safePackResult);
 
     const archivePath = join(temporaryDirectory, packResult.filename);
     if (!existsSync(archivePath)) {

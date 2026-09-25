@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [4.5.1] - 2026-09-25
+
+### Fixed
+
+- Published the main and Safe proxy npm packages with regular files set to `0644` instead of `0755`.
+- Added a packaging check that rejects unexpected executable file modes before publication.
+
 ## [4.5.0] - 2026-09-24
 
 ### Added
