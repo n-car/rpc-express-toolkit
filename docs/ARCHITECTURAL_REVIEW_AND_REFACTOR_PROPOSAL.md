@@ -3,7 +3,7 @@
 Historical review: the architecture, findings, and proposals below describe the
 implementation at review time, not the current API or a new implementation plan.
 Subsequent releases extracted the shared client and corrected protocol/batch
-behavior. The pending **4.5.2 (unreleased)** patch also sanitizes unexpected
+behavior. The **4.5.2** patch, released on 2026-10-12, also sanitizes unexpected
 errors and normalizes invalid-envelope response IDs. For current behavior, see
 [Advanced Usage](../README_ADVANCED.md) and the [Changelog](../CHANGELOG.md).
 The original review and section anchors are retained for historical reference.

@@ -2,7 +2,7 @@
 
 Historical action plan: the status table and proposals below are a snapshot of
 the `v4.3.0`/`v4.3.1` work, not the latest release status or a new task list.
-The pending **4.5.2 (unreleased)** patch additionally sanitizes unexpected errors
+The **4.5.2** patch, released on 2026-10-12, additionally sanitizes unexpected errors
 and normalizes invalid-envelope response IDs. Consult the
 [Changelog](../CHANGELOG.md) and [Advanced Usage](../README_ADVANCED.md) for
 current behavior; the original findings and anchors are retained below.
