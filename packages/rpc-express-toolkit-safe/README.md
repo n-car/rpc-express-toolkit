@@ -2,6 +2,11 @@
 
 This package is a thin wrapper around `rpc-express-toolkit/safe` that enables a “safe preset” import path.
 
+Version **4.5.2** targets `rpc-express-toolkit` 4.5.2. The proxy inherits the
+core's default unexpected-error sanitization and
+public application-error contract; see [error handling](../../README_ADVANCED.md#error-handling).
+Safe Mode preserves value types, not authentication or encryption.
+
 - Server class: `new RpcSafeEndpoint(app, context, options?)`
   - Applies `{ safeEnabled: true, strictMode: true }` by default
 - Client class: `new RpcSafeClient(endpoint, headers?, options?)`

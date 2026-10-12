@@ -92,7 +92,7 @@ describe('RpcEndpoint', () => {
       expect(response.status).toBe(200);
       expect(response.body).toEqual({
         jsonrpc: '2.0',
-        id: 1,
+        id: null,
         error: {
           code: -32600,
           message: "Invalid Request: 'jsonrpc' must be '2.0'.",
@@ -113,7 +113,7 @@ describe('RpcEndpoint', () => {
       expect(response.status).toBe(200);
       expect(response.body).toEqual({
         jsonrpc: '2.0',
-        id: 1,
+        id: null,
         error: {
           code: -32600,
           message: "Invalid Request: 'method' must be a string.",
@@ -155,7 +155,7 @@ describe('RpcEndpoint', () => {
       expect(response.status).toBe(200);
       expect(response.body).toEqual({
         jsonrpc: '2.0',
-        id: 1,
+        id: null,
         error: {
           code: -32600,
           message: "Invalid Request: 'params' must be an object or array.",
@@ -230,7 +230,10 @@ describe('RpcEndpoint', () => {
       expect(response.body.id).toBe(1);
       expect(response.body.error).toBeDefined();
       expect(response.body.error.code).toBe(-32603);
-      expect(response.body.error.message).toBe('Test error');
+      expect(response.body.error).toEqual({
+        code: -32603,
+        message: 'Internal error',
+      });
     });
   });
 
@@ -477,7 +480,8 @@ describe('RpcEndpoint', () => {
           await client.call('getData', { key: 'nonexistent' });
           fail('Should have thrown an error');
         } catch (error) {
-          expect(error.message).toBe('Key not found');
+          expect(error.message).toBe('Internal error');
+          expect(error.code).toBe(-32603);
         }
       });
 

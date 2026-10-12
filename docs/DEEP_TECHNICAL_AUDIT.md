@@ -1,6 +1,6 @@
 # Deep Technical Audit — rpc-express-toolkit
 
-Historical note: this audit records findings from the pre-`v4.3.0` implementation review. The P0/P1 protocol and batch-parity findings listed below were fixed in `v4.3.0`; see [`AUDIT_ACTION_PLAN.md`](AUDIT_ACTION_PLAN.md) for the current status table and remaining compatibility-sensitive follow-up.
+Historical note: this audit records findings from the pre-`v4.3.0` implementation review. The P0/P1 protocol and batch-parity findings listed below were fixed in `v4.3.0`; [`AUDIT_ACTION_PLAN.md`](AUDIT_ACTION_PLAN.md) records that historical status snapshot. The pending **4.5.2 (unreleased)** patch further sanitizes unexpected errors and normalizes invalid-envelope response IDs. See the [Changelog](../CHANGELOG.md) and [Advanced Usage](../README_ADVANCED.md) for current behavior. The original findings and anchors are preserved, not presented as current vulnerabilities.
 
 This audit focuses only on correctness, edge cases, and protocol consistency. It is based on direct code inspection and local test execution.
 

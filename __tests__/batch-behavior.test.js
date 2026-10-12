@@ -192,7 +192,7 @@ describe('Batch behavior', () => {
         { jsonrpc: '2.0', method: 'echo', params: 'bad', id: 1 },
       ]);
     expect(res.status).toBe(200);
-    expect(res.body[0].id).toBe(1);
+    expect(res.body[0].id).toBeNull();
     expect(res.body[0].error.code).toBe(-32600);
     expect(res.body[0].error.message).toBe(
       "Invalid Request: 'params' must be an object or array."

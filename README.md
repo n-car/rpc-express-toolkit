@@ -10,6 +10,9 @@
 
 JSON-RPC 2.0 toolkit for Express.js with simplified APIs, middleware, schema validation, batch support, and optional Safe Mode type preservation.
 
+Version **4.5.2**, including the Safe proxy, sanitizes unexpected errors by
+default and tightens invalid envelope handling; see [Changelog](CHANGELOG.md).
+
 ## Which Package Should I Use?
 
 - Use `rpc-express-toolkit` if you are building a JSON-RPC endpoint on Express.
@@ -34,7 +37,7 @@ Requirements:
 
 ### Compatibility
 
-`rpc-express-toolkit` is tested with Node.js 18, 20, 22, and 24 across Express 4 and Express 5. See [Compatibility](docs/COMPATIBILITY.md) for the current runtime matrix.
+The CI matrix covers Node.js 18, 20, 22, 24, and 26 across Express 4 and Express 5. See [Compatibility](docs/COMPATIBILITY.md) for the configured runtime matrix.
 
 ### TypeScript
 
@@ -226,6 +229,10 @@ const rpc = new RpcEndpoint(app, context, {
 
 Calls to methods outside the whitelist are rejected. This is a basic method restriction mechanism, not a complete role or permission system. Project-specific authorization rules can be implemented with middleware hooks such as `beforeCall`; see `README_ADVANCED.md`.
 
+Client `params` are passed as one object or array argument, never expanded into
+the server-owned application or call context. Base authorization on the
+server-validated context rather than identity claims in client parameters.
+
 ### Safe Import (opt-in)
 
 [![npm (proxy)](https://img.shields.io/npm/v/rpc-express-toolkit-safe.svg)](https://www.npmjs.com/package/rpc-express-toolkit-safe)
@@ -249,6 +256,11 @@ const client = new RpcSafeClient('http://localhost:3000/api');
 ```
 
 This keeps JSON-RPC 2.0 compliance as default for the main entrypoint, while offering a convenient safe-mode import for projects that prefer explicit type disambiguation.
+
+Safe encoding applies only to `params`, `result`, and `error.data`, not to
+`method`, `id`, or `error.message`. It is type preservation, not authentication
+or encryption. See the [request contract](README_ADVANCED.md#request-contract)
+for notification, ID, and invalid-envelope behavior.
 
 #### Alternative Compatibility Package
 
@@ -314,7 +326,14 @@ In `__rpc.capabilities`, `auth` is a boolean indicating whether authentication m
 
 ## Full Details
 
-For advanced configuration, middleware, structured logging, safe serialization, error handling, and more, see `README_ADVANCED.md`.
+Unexpected exceptions return only `code: -32603` and `message: "Internal error"`
+by default, for both single calls and batches. Intentional application errors
+with an explicit safe-integer RPC `code` other than `-32603` retain their `message`
+and optional `data`, without an automatically attached stack trace. Treat those
+fields as public. Set `sanitizeErrors: false` only for local debugging; it can
+expose internal messages, exception data, and stack traces to callers.
+
+For advanced configuration, middleware, structured logging, safe serialization, error handling, and more, see [Advanced Usage](README_ADVANCED.md).
 
 ## Related Projects
 

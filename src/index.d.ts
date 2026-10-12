@@ -60,6 +60,8 @@ declare class RpcEndpoint<C = any> {
   listMethods(): string[];
   getMetrics(): object;
 
+  formatError(error: unknown, batchIndex?: number): RpcEndpoint.JSONRPCError;
+
   static serveScripts(router: Router, url?: string): void;
 
   reply(
@@ -193,6 +195,8 @@ declare namespace RpcEndpoint {
     logging?: LoggingConfig;
     warnOnUnsafe?: boolean;
     strictMode?: boolean;
+    /** Hide unexpected error details (default true); false is for local debugging only. */
+    sanitizeErrors?: boolean;
     maxSerializationDepth?: number;
     maxDeserializationDepth?: number;
     autoJsonMiddleware?: boolean;

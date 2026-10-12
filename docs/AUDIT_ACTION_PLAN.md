@@ -1,5 +1,12 @@
 # RPC Express Toolkit — Correctness & Protocol Action Plan
 
+Historical action plan: the status table and proposals below are a snapshot of
+the `v4.3.0`/`v4.3.1` work, not the latest release status or a new task list.
+The pending **4.5.2 (unreleased)** patch additionally sanitizes unexpected errors
+and normalizes invalid-envelope response IDs. Consult the
+[Changelog](../CHANGELOG.md) and [Advanced Usage](../README_ADVANCED.md) for
+current behavior; the original findings and anchors are retained below.
+
 ## 0) Current implementation status
 
 As of `v4.3.0`, the Express server has closed the P0/P1 protocol-correctness work tracked here: notification semantics, request-envelope validation, batch/single parity, strict Safe Mode parity, schema validation in batches, batch error data preservation, server-side traversal hardening, and logging hardening.

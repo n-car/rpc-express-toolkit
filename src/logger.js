@@ -159,10 +159,10 @@ class Logger {
       method,
       id,
       duration: `${duration}ms`,
-      error: error.message,
-      code: error.code,
+      error: error?.message,
+      code: error?.code,
       stack:
-        this.levels[this.level] >= this.levels.debug ? error.stack : undefined,
+        this.levels[this.level] >= this.levels.debug ? error?.stack : undefined,
     });
   }
 

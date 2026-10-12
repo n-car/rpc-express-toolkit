@@ -9,14 +9,6 @@ class BatchHandler {
     this.endpoint = endpoint;
   }
 
-  serializeErrorData(error, batchIndex) {
-    const errorWithBatchIndex = addBatchIndex(error, batchIndex);
-    if (!hasOwn(errorWithBatchIndex, 'data')) {
-      return undefined;
-    }
-    return this.endpoint.serializeBigIntsAndDates(errorWithBatchIndex.data);
-  }
-
   /**
    * Check if request is a batch request
    * @param {any} body
@@ -104,15 +96,10 @@ class BatchHandler {
           index
         );
       } catch (error) {
-        const errorData = this.serializeErrorData(error, index);
         return {
           jsonrpc: '2.0',
           id: request && hasOwn(request, 'id') ? request.id : null,
-          error: {
-            code: error.code || -32603,
-            message: error.message || 'Internal error',
-            ...(errorData !== undefined && { data: errorData }),
-          },
+          error: this.endpoint.formatError(error, index),
         };
       }
     });
@@ -314,16 +301,10 @@ class BatchHandler {
         return null;
       }
 
-      const errorData = this.serializeErrorData(error, batchIndex);
-
       return {
         jsonrpc: '2.0',
         id,
-        error: {
-          code: error.code || -32603,
-          message: error.message || 'Internal error',
-          ...(errorData !== undefined && { data: errorData }),
-        },
+        error: this.endpoint.formatError(error, batchIndex),
       };
     }
   }

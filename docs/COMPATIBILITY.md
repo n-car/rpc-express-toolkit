@@ -6,14 +6,17 @@
 
 | Runtime | Status |
 | --- | --- |
-| Node.js 18.x | CI tested |
-| Node.js 20.x | CI tested |
-| Node.js 22.x | CI tested |
-| Node.js 24.x | CI tested |
-| Express 4.x | CI tested |
-| Express 5.x | CI tested |
+| Node.js 18.x | Configured CI target |
+| Node.js 20.x | Configured CI target |
+| Node.js 22.x | Configured CI target |
+| Node.js 24.x | Configured CI target |
+| Node.js 26.x | Configured CI target |
+| Express 4.x | Configured CI target |
+| Express 5.x | Configured CI target |
 
-The GitHub Actions matrix runs the test suite across Node.js 18, 20, 22, and 24 with both Express 4 and Express 5.
+The GitHub Actions matrix is configured to run the test suite across Node.js 18,
+20, 22, 24, and 26 with both Express 4 and Express 5. This is the configured
+coverage, not a claim that every target has been rerun for the 4.5.2 release.
 
 ## Module And TypeScript Compatibility
 
@@ -42,6 +45,26 @@ acknowledge the compiler's deprecation notice for the deliberately explicit
 
 Package validation runs in CI and as part of `prepublishOnly`, so declaration or packaging regressions block publication.
 
+Under WSL, run packaging from a native Linux filesystem: Windows-mounted source trees can
+make regular files appear executable (`0755`), which the runner deliberately
+rejects. A temporary source copy with regular file modes preserves this check
+without changing the original checkout.
+
+An offline run requires both registry metadata and package tarballs in npm's
+selected cache. A package installed elsewhere, or a cached version listing,
+does not by itself guarantee that npm can install the isolated consumer offline.
+Select the cache for that process with `npm_config_cache`; use
+`npm_config_offline=true` when network access must be disabled.
+
+Local validation on 2026-10-12 passed the full packaged-consumer runner for the
+4.5.2 source: Node.js 24.14.0, npm 11.12.0, TypeScript 6.0.3, Express
+4.22.2, `@types/express` 5.0.6, and `@types/node` 26.6.2. The offline run used
+`npm_config_before=2026-09-20T00:00:00Z` to select compatible versions already
+cached, without changing manifests or tests. It covered packaging, installation,
+ESM/CommonJS types and runtime, Publint, and ATTW for both the main and Safe proxy
+packages. This does not establish a result for uncached `@types/node` 26.6.4 or
+for every configured CI target.
+
 ## Express Dependency
 
 Express is declared as a peer dependency:
@@ -59,6 +82,8 @@ The Express compatibility tests cover:
 - standard JSON-RPC endpoint calls;
 - batch requests;
 - Safe Mode endpoints;
-- introspection reporting of the active Express runtime.
+- introspection reporting of the active Express runtime;
+- invalid request envelopes and null IDs/results;
+- default error sanitization, intentional public errors, and the debug opt-out.
 
 Broader RPC behavior is covered by the main test suite and is expected to run identically on Express 4 and Express 5. Module and declaration compatibility is covered separately by the packaged consumer validation.

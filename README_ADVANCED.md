@@ -5,6 +5,9 @@
 
 Enterprise-ready JSON-RPC 2.0 toolkit for Express.js applications with structured logging, middleware, schema validation, batch processing, and precise type handling via optional safe prefixes.
 
+This guide describes **4.5.2**. Earlier
+published versions may differ, particularly in unexpected-error sanitization.
+
 ## Table of Contents
 
 - Features
@@ -12,6 +15,7 @@ Enterprise-ready JSON-RPC 2.0 toolkit for Express.js applications with structure
 - Quick Start
 - Advanced Usage
   - Configuration Options
+  - Request Contract
   - Safe Serialization
   - Schema Validation
   - Middleware System
@@ -43,9 +47,9 @@ Enterprise-ready JSON-RPC 2.0 toolkit for Express.js applications with structure
 ## Installation
 
 ```bash
-npm install rpc-express-toolkit
+npm install express rpc-express-toolkit
 # or
-yarn add rpc-express-toolkit
+yarn add express rpc-express-toolkit
 ```
 
 ## Quick Start
@@ -66,6 +70,7 @@ const rpc = new RpcEndpoint(app, context, {
   methodWhitelist: ['add', 'subtract', 'getUser'],
   validation: { coerceTypes: true, removeAdditional: true },
   safeEnabled: false,
+  sanitizeErrors: true,
   warnOnUnsafe: true,
   healthCheck: true,
   metrics: true,
@@ -73,6 +78,22 @@ const rpc = new RpcEndpoint(app, context, {
   maxBatchSize: 100,
 });
 ```
+
+### Request Contract
+
+Requests require `jsonrpc: "2.0"` and a nonempty string `method`. When present,
+`params` must be an object or array; `null` and scalar parameters are invalid
+envelopes. IDs may be strings, finite numbers, or `null`. A missing `id` means a
+notification with no JSON-RPC response; an explicit `id: null` receives a response.
+
+Invalid envelopes return `-32600` with `id: null`, including invalid batch items.
+Valid notifications are omitted from batch responses; an all-notification batch
+has no response body. Schema validation failures return `-32602` with the
+original ID. Null results remain `result: null`, and empty objects remain objects.
+
+Handlers receive `(request, applicationContext, params, callContext)`. Client
+array parameters occupy the `params` argument only; they cannot replace the
+server-owned context arguments. Handler signatures are unchanged in this patch.
 
 ### Safe Serialization
 
@@ -84,11 +105,15 @@ The toolkit can optionally prefix string and date values to avoid ambiguity betw
 
 By default `safeEnabled` is disabled to maximize interoperability. When disabled, BigInt are still serialized as strings with `n` suffix and Date as ISO strings; the server/client can warn to educate about potential ambiguity.
 
+Only `params`, `result`, and `error.data` are recursively encoded or decoded.
+Envelope fields, including `method`, `id`, and `error.message`, are unchanged.
+Safe Mode preserves value types; it does not authenticate or encrypt requests.
+
 #### Defaults and Negotiation
 
 - Server sends header `X-RPC-Safe-Enabled` in responses.
 - Client sends the same header in requests.
-- Strict compatibility: if server is `safeEnabled: true` and `strictMode: true`, and the client does not send the header, the server returns a JSON-RPC error `-32600`.
+- Strict compatibility: if server is `safeEnabled: true` and `strictMode: true`, and the client does not send the header, response-bearing calls return a JSON-RPC error `-32600`. Valid notifications still produce no response.
 - Client with `safeEnabled: true` expects the server header; if missing, it throws an exception.
 
 #### Example
@@ -191,15 +216,41 @@ Middleware can inspect `ctx.method`, `ctx.params`, `ctx.req`, `ctx.res`, and the
 
 ### Structured Logging
 
-The `Logger` supports `error`, `warn`, `info`, `debug`, `trace`. Server logs RPC start/success/error and sanitizes sensitive fields in params.
+The `Logger` supports `error`, `warn`, `info`, `debug`, `trace`. Server logs RPC start/success/error and sanitizes common sensitive fields in params. This is best-effort redaction, not a guarantee that arbitrary secrets are removed. Keep internal diagnostics and logs access-controlled.
 
 ### Error Handling
 
-Errors are returned as JSON-RPC `error` with `code`, `message`, and optional `data`. Internally, errors are serialized with safe fields; stack traces are included but you can treat them as sensitive in production-level logs.
+Unexpected handler, middleware, and endpoint exceptions return only
+`{ "code": -32603, "message": "Internal error" }` by default, for both single
+calls and batches. Internal messages, data, and exception stacks are not sent to
+clients. This also applies to native errors without a safe-integer RPC code.
+
+To deliberately expose an application error, assign a safe-integer `code` other
+than `-32603`. Its `message` and optional `data` are public, so never put secrets
+or internal diagnostics in those fields:
+
+```javascript
+const error = new Error('Access denied');
+error.code = -32003;
+error.data = { reason: 'permission' };
+throw error;
+```
+
+Schema validation errors remain public `-32602` errors. Batch application errors
+may include `batchIndex` metadata without discarding their original data. Stacks
+are not automatically attached to explicit application errors. Server-side
+`onError` middleware can still inspect the original exception for diagnostics.
+
+Setting `{ sanitizeErrors: false }` on `RpcEndpoint` is an explicit **local
+debugging only** opt-out: unexpected messages, data, and serialized exception
+stacks can then reach callers. Never enable it in production.
 
 ### Client Configuration
 
-`RpcClient` handles serialization automatically. In Node.js it uses `fetch` (builtin on Node 18+ or `node-fetch` if available). BigInt serialization is supported via `BigInt.prototype.toJSON` polyfill installed by the client.
+`RpcClient` delegates to the shared `rpc-toolkit-js-client` and handles
+serialization automatically without modifying `BigInt.prototype`. It uses
+`globalThis.fetch` (built in on Node.js 18+) unless a custom `fetch` implementation
+is provided in the client options.
 
 Options:
 - `safeEnabled`: enable safe prefixes for strings/dates.
@@ -248,6 +299,7 @@ npm run lint
 - Use a shared rate-limit store when running multiple workers or instances.
 - Set `enableBatch: false` when batch is unnecessary, or configure a conservative `maxBatchSize`.
 - Keep introspection disabled and configure an explicit CORS origin in production; do not use `cors: true` for public deployments because it implies a wildcard origin.
+- Keep the default `sanitizeErrors: true`; treat explicit application error messages and data as public.
 - Avoid logging sensitive data; the logger sanitizes common keys.
 
 ## License

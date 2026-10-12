@@ -31,7 +31,7 @@ const {
   SchemaBuilder,
 } = require('./validation');
 const BatchHandler = require('./batch');
-const { hasOwn, validateEnvelope } = require('./protocol');
+const { addBatchIndex, hasOwn, validateEnvelope } = require('./protocol');
 
 /**
  * Default properties to include in error serialization.
@@ -165,6 +165,7 @@ class RpcEndpoint {
     this.#options.safeEnabled = this.#options.safeEnabled === true; // Default false
     this.#options.warnOnUnsafe = this.#options.warnOnUnsafe !== false; // Default true
     this.#options.strictMode = this.#options.strictMode !== false; // Default true
+    this.#options.sanitizeErrors = this.#options.sanitizeErrors !== false;
     this.#options.enableIntrospection =
       this.#options.enableIntrospection === true; // Default false
     this.#options.introspectionPrefix =
@@ -499,18 +500,13 @@ class RpcEndpoint {
         await this.#processSingleRequest(req, res, context, startTime);
       } catch (error) {
         this.#logger.error('Endpoint error', {
-          error: error.message,
-          stack: error.stack,
+          error: error?.message,
+          stack: error?.stack,
         });
 
-        res.json({
-          jsonrpc: '2.0',
+        this.reply(res, {
           id: null,
-          error: {
-            code: -32603,
-            message: 'Internal error',
-            data: serializeError(error, true),
-          },
+          error: this.formatError(error),
         });
       }
     });
@@ -695,7 +691,7 @@ class RpcEndpoint {
         });
       } catch (middlewareError) {
         this.#logger.error('Error middleware failed', {
-          error: middlewareError.message,
+          error: middlewareError?.message,
         });
       }
 
@@ -704,19 +700,9 @@ class RpcEndpoint {
         return null;
       }
 
-      const errorData =
-        hasOwn(err, 'data') && err.data !== undefined
-          ? this.serializeBigIntsAndDates(err.data)
-          : undefined;
-
       this.reply(res, {
         id,
-        error: {
-          code: err.code || -32603,
-          message: err.message || `Internal error`,
-          ...(errorData !== undefined && { data: errorData }),
-          error: serializeError(err, true),
-        },
+        error: this.formatError(err),
       });
     }
     // Ensure explicit return for consistent-return rule
@@ -879,6 +865,41 @@ class RpcEndpoint {
       memory: process.memoryUsage(),
       timestamp: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Build a public RPC error consistently for single and batch requests.
+   * Only explicit integer RPC codes identify application errors; native error
+   * codes such as ENOENT must not expose unexpected implementation details.
+   * @param {any} error
+   * @param {number} [batchIndex]
+   * @returns {{ code: number, message: string, data?: any, error?: Object }}
+   */
+  formatError(error, batchIndex) {
+    const code = Number.isSafeInteger(error?.code) ? error.code : -32603;
+    if (this.#options.sanitizeErrors && code === -32603) {
+      return { code: -32603, message: 'Internal error' };
+    }
+
+    let response = {
+      code,
+      message:
+        typeof error?.message === 'string' && error.message
+          ? error.message
+          : 'Internal error',
+      ...(error?.data !== undefined && { data: error.data }),
+    };
+    if (batchIndex !== undefined) {
+      response = addBatchIndex(response, batchIndex);
+    }
+    if (hasOwn(response, 'data')) {
+      response.data = this.serializeBigIntsAndDates(response.data);
+    }
+    if (code === -32603) {
+      // Debug opt-out only: never add raw exceptions to application errors.
+      response.error = serializeError(error, true);
+    }
+    return response;
   }
 
   /**

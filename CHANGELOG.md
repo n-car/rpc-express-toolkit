@@ -1,6 +1,17 @@
 # Changelog
 
-## [Unreleased]
+<a id="unreleased"></a>
+
+## [4.5.2] - 2026-10-12
+
+Release notes for the main package and Safe proxy.
+
+### Fixed
+
+- Invalid request envelopes consistently return a null response ID. Non-finite
+  native numeric IDs are rejected before dispatch.
+- Sanitize unexpected/internal RPC errors by default across single calls, batches, and endpoint failures. Preserve intentional application error codes, messages, and data without automatically exposing exception stacks.
+- Add the `sanitizeErrors: false` option for local debugging only.
 
 ## [4.5.1] - 2026-09-25
 
